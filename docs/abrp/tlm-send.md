@@ -1,0 +1,527 @@
+{
+  "info": {
+    "_postman_id": "2116fbab-059f-42e1-b6fd-30e1b96b14c6",
+    "name": "Iternio Telemetry API",
+    "description": "\u003Chtml\u003E\u003Chead\u003E\u003C/head\u003E\u003Cbody\u003E\u003Cp\u003EThe Iternio Telemetry API allows your application to send data to A Better Routeplanner for use in driving with live data, and helping us improve our car modelling.\u003C/p\u003E\n\u003Cp\u003ETo be able to use the API, you will need to obtain an API key and a user token for each user. The Telemetry-Only API keys are free, and get you basic access to the Telemetry API. Contact us at \u003Ca href=\"https://mailto:contact@iternio.com\"\u003Econtact@iternio.com\u003C/a\u003E to receive a Telemetry API key. The API key identifies your application to our server for authentication.\u003C/p\u003E\n\u003Cp\u003EThere are two ways of retrieving a user token for each telemetry, which is needed to identify the user (and vehicle) to the server so we can deliver the telemetry to them. The preferred method is via OAuth2 (See OAuth2 API), which will return a user token without any data entry. It’s also acceptable to have the user retrieve a token from our Live Data Setup screen.\u003C/p\u003E\n\u003Ch1 id=\"api-endpoints\"\u003EAPI endpoints\u003C/h1\u003E\n\u003Cp\u003EThe main endpoint is the send endpoint which transmits vehicle telemetry (live data) to the ABRP/Iternio servers. This data will be presented to the user and used while planning and driving with ABRP.\u003Cbr\u003EWhen telemetry data is given to us, we want to give back some data which helps you create a better user experience in your app or service. Therefore we offer also the non-telemetry-related endpoints\u003C/p\u003E\n\u003Cul\u003E\n\u003Cli\u003E\u003Cp\u003Eget_next_charge: Returns the next charge-to SoC while the user is driving, so that your app can signal the user when the charging is done or similar\u003C/p\u003E\n\u003C/li\u003E\n\u003Cli\u003E\u003Cp\u003Eget_latest_plan: Returns the latest plan the user has created so that your app can display it or do something with it for the benefit of the user\u003C/p\u003E\n\u003C/li\u003E\n\u003C/ul\u003E\n\u003Ch1 id=\"common-for-all-telemetry-api-endpoint\"\u003ECommon for all Telemetry API endpoint\u003C/h1\u003E\n\u003Cp\u003EThe base address of the version 1 API is \u003Ca href=\"https://api.iternio.com/1/\"\u003Ehttps://api.iternio.com/1/\u003C/a\u003E\u003C/p\u003E\n\u003Cp\u003EYou can call all endpoints using HTTP GET or POST – both works. In both cases, the parameters have to be URLencoded, either in the URL (for GET) or in the body (for POST).\u003C/p\u003E\n\u003Cp\u003EThe API is a standard REST API with HTTP parameters and JSON input/output. The API is versioned, and the current version is 1. When we introduce non-backwards compatible changes, we will bump the API version and run the versions in parallel as long as it is possible.\u003C/p\u003E\n\u003Ch1 id=\"authentication\"\u003EAuthentication\u003C/h1\u003E\n\u003Cp\u003EAuthentication is done vida the URL query parameter \"api_key=xxxx\" or the HTTP header \"Authorization\" with the value \"APIKEY xxxxx\". You can obtain API keys and more information by contacting us at \u003Ca href=\"https://mailto:contact@iternio.com\"\u003Econtact@iternio.com\u003C/a\u003E.\u003C/p\u003E\n\u003Ch1 id=\"return-values\"\u003EReturn values\u003C/h1\u003E\n\u003Cp\u003EThe API uses JSON objects for return values, outside of the normal HTTP status codes. HTTP status codes are only used to indicate serious errors such as invalid API key or wrong usage of the API. Everything else is returned with an HTTP 200 and an application/json payload.\u003C/p\u003E\n\u003Cp\u003EThe return object has two mandatory fields\u003C/p\u003E\n\u003Cul\u003E\n\u003Cli\u003E\u003Cp\u003Estatus: One of \"ok\", \"error\" or other more specific strings\u003C/p\u003E\n\u003C/li\u003E\n\u003Cli\u003E\u003Cp\u003Eresult: The actual result of the operation (list of chargers, plan, etc)\u003C/p\u003E\n\u003C/li\u003E\n\u003C/ul\u003E\n\u003C/body\u003E\u003C/html\u003E",
+    "schema": "https://schema.getpostman.com/json/collection/v2.0.0/collection.json",
+    "toc": [
+      {
+        "content": "API endpoints",
+        "slug": "api-endpoints"
+      },
+      {
+        "content": "Common for all Telemetry API endpoint",
+        "slug": "common-for-all-telemetry-api-endpoint"
+      },
+      {
+        "content": "Authentication",
+        "slug": "authentication"
+      },
+      {
+        "content": "Return values",
+        "slug": "return-values"
+      }
+    ],
+    "owner": "7396339",
+    "collectionId": "2116fbab-059f-42e1-b6fd-30e1b96b14c6",
+    "publishedId": "SWTK5a8w",
+    "public": true,
+    "customColor": {
+      "top-bar": "F0F0F0",
+      "right-sidebar": "303030",
+      "highlight": "E04B34"
+    },
+    "publishDate": "2020-02-11T13:07:15.000Z"
+  },
+  "item": [
+    {
+      "name": "send",
+      "id": "fdb20525-51da-4195-8138-54deabe907d5",
+      "protocolProfileBehavior": {
+        "disableBodyPruning": true
+      },
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "https://api.iternio.com/1/tlm/send?token=\u003CABRP user token\u003E&tlm={\"utc\":1553807658,\"soc\":80.4,\"soh\":97.7,\"speed\":0,\"lat\":29.564,\"lon\":-95.025,\"elevation\":50,\"is_charging\":0,\"power\":13.2,\"ext_temp\":25,\"batt_temp\":25,\"car_model\":\"chevy:bolt:17:60:other\",\"current\":36.66,\"voltage\":360}",
+        "description": "\u003Cp\u003EThis is the main method of the Iternio Telemetry API. It will respond with any errors encountered when processing the telemetry, or with the standard “status”: “ok” response if no issues were encountered.\u003C/p\u003E\n\u003Cp\u003EIf the status is not \"ok\", then a number of errors may be indicated in the \"errors\" property of the returned JSON object.\u003C/p\u003E\n\u003Cp\u003EThere are a number of required parameters which must be in every call to the API. Without these, we cannot provide a useful driving mode to the user. There are also optional (but highly desired) parameters which add insight to the vehicle and help with producing more accurate plans and car models.\u003C/p\u003E\n\u003Cp\u003EAll parameters are expected to be received in metric. They will be converted for display to the user if required. The desired data rate is one point every 5 seconds, but slower rates are accepted. Less than one every 30 seconds is recommended against.\u003C/p\u003E\n\u003Ch3 id=\"processing-delay\"\u003EProcessing delay\u003C/h3\u003E\n\u003Cp\u003EThe backend system works with telemetry data in batches for efficiency and to be able to merge telemetry from different sources (e.g. from the Telemetry API and GPS from the app).\u003C/p\u003E\n\u003Cp\u003ECurrently, the system delays processing by 60 seconds to wait for all sources of telemetry to report data. A consequence of this is also that \u003Cstrong\u003Eif you only send data within a 60 second window, it will not get processed\u003C/strong\u003E until you send data outside of that window (i.e. data for the next minute).\u003C/p\u003E\n\u003Ch2 id=\"telemetry-parameters\"\u003ETelemetry parameters\u003C/h2\u003E\n\u003Cp\u003EThe required parameters (and expected units) in the tlm JSON object are the following, in order of priority. Nothing is strictly required, but many features in ABRP will only be usable with enough data.\u003C/p\u003E\n\u003Cp\u003EHigh priority parameters:\u003C/p\u003E\n\u003Cul\u003E\n\u003Cli\u003E\u003Cp\u003E\u003Ccode\u003Eutc\u003C/code\u003E [s]: UTC timestamp of the data (epoch) in seconds (note, not milliseconds!)\u003C/p\u003E\n\u003C/li\u003E\n\u003Cli\u003E\u003Cp\u003E\u003Ccode\u003Esoc\u003C/code\u003E [SoC %]: State of Charge of the vehicle (what's displayed on the dashboard of the vehicle is preferred)\u003C/p\u003E\n\u003C/li\u003E\n\u003Cli\u003E\u003Cp\u003E\u003Ccode\u003Epower\u003C/code\u003E [kW]: Instantaneous power output/input to the vehicle. Power output is positive, power input is negative (charging)\u003C/p\u003E\n\u003C/li\u003E\n\u003Cli\u003E\u003Cp\u003E\u003Ccode\u003Espeed\u003C/code\u003E [km/h]: Vehicle speed\u003C/p\u003E\n\u003C/li\u003E\n\u003Cli\u003E\u003Cp\u003E\u003Ccode\u003Elat\u003C/code\u003E [°]: Current vehicle latitude\u003C/p\u003E\n\u003C/li\u003E\n\u003Cli\u003E\u003Cp\u003E\u003Ccode\u003Elon\u003C/code\u003E [°]: Current vehicle longitude\u003C/p\u003E\n\u003C/li\u003E\n\u003Cli\u003E\u003Cp\u003E\u003Ccode\u003Eis_charging\u003C/code\u003E [bool or 1/0]: Determines vehicle state. 0 is not charging, 1 is charging\u003C/p\u003E\n\u003C/li\u003E\n\u003Cli\u003E\u003Cp\u003E\u003Ccode\u003Eis_dcfc\u003C/code\u003E [bool or 1/0]: If is_charging, indicate if this is DC fast charging\u003C/p\u003E\n\u003C/li\u003E\n\u003Cli\u003E\u003Cp\u003E\u003Ccode\u003Eis_parked\u003C/code\u003E [bool or 1/0]: If the vehicle gear is in P (or the driver has left the car)\u003C/p\u003E\n\u003C/li\u003E\n\u003C/ul\u003E\n\u003Cp\u003EThe lower priority parameters (and expected units) are:\u003C/p\u003E\n\u003Cul\u003E\n\u003Cli\u003E\u003Cp\u003E\u003Ccode\u003Ecapacity\u003C/code\u003E [kWh]: Estimated usable battery capacity (can be given together with soh, but usually not)\u003C/p\u003E\n\u003C/li\u003E\n\u003Cli\u003E\u003Cp\u003E\u003Ccode\u003Esoe\u003C/code\u003E [kWh]: Present energy capacity of the battery, equal to \u003Ccode\u003ESoC\u003C/code\u003E * \u003Ccode\u003Ecapacity\u003C/code\u003E\u003C/p\u003E\n\u003C/li\u003E\n\u003Cli\u003E\u003Cp\u003E\u003Ccode\u003Esoh\u003C/code\u003E [%]: State of Health of the battery. 100 = no degradation\u003C/p\u003E\n\u003C/li\u003E\n\u003Cli\u003E\u003Cp\u003E\u003Ccode\u003Eheading\u003C/code\u003E [°]: Current heading of the vehicle. This will take priority over phone heading, so don't include if not accurate.\u003C/p\u003E\n\u003C/li\u003E\n\u003Cli\u003E\u003Cp\u003E\u003Ccode\u003Eelevation\u003C/code\u003E [m]: Vehicle's current elevation. If not given, will be looked up from location (but may miss 3D structures)\u003C/p\u003E\n\u003C/li\u003E\n\u003Cli\u003E\u003Cp\u003E\u003Ccode\u003Eext_temp\u003C/code\u003E [°C]: Outside temperature measured by the vehicle\u003C/p\u003E\n\u003C/li\u003E\n\u003Cli\u003E\u003Cp\u003E\u003Ccode\u003Ebatt_temp\u003C/code\u003E [°C]: Battery temperature\u003C/p\u003E\n\u003C/li\u003E\n\u003Cli\u003E\u003Cp\u003E\u003Ccode\u003Evoltage\u003C/code\u003E [V]: Battery pack voltage\u003C/p\u003E\n\u003C/li\u003E\n\u003Cli\u003E\u003Cp\u003E\u003Ccode\u003Ecurrent\u003C/code\u003E [A]: Battery pack current (similar to power: output is positive, input (charging) is negative.)\u003C/p\u003E\n\u003C/li\u003E\n\u003Cli\u003E\u003Cp\u003E\u003Ccode\u003Eodometer\u003C/code\u003E [km]: Current odometer reading in km.\u003C/p\u003E\n\u003C/li\u003E\n\u003Cli\u003E\u003Cp\u003E\u003Ccode\u003Eest_battery_range\u003C/code\u003E [km]: Estimated remaining range of the vehicle (according to the vehicle)\u003C/p\u003E\n\u003C/li\u003E\n\u003Cli\u003E\u003Cp\u003E\u003Ccode\u003Ehvac_power\u003C/code\u003E [kW]: power usage by heating and cooling\u003C/p\u003E\n\u003C/li\u003E\n\u003Cli\u003E\u003Cp\u003E\u003Ccode\u003Ehvac_setpoint\u003C/code\u003E [°C]: current setpoint of the HVAC system\u003C/p\u003E\n\u003C/li\u003E\n\u003Cli\u003E\u003Cp\u003E\u003Ccode\u003Ecabin_temp\u003C/code\u003E [°C]: current temperature of the cabin\u003C/p\u003E\n\u003C/li\u003E\n\u003Cli\u003E\u003Cp\u003E\u003Ccode\u003Etire_pressure_fl\u003C/code\u003E [kPa]: Front Left tire pressure\u003C/p\u003E\n\u003C/li\u003E\n\u003Cli\u003E\u003Cp\u003E\u003Ccode\u003Etire_pressure_fr\u003C/code\u003E [kPa]: Front Right tire pressure\u003C/p\u003E\n\u003C/li\u003E\n\u003Cli\u003E\u003Cp\u003E\u003Ccode\u003Etire_pressure_rl\u003C/code\u003E [kPa]: Rear Left tire pressure\u003C/p\u003E\n\u003C/li\u003E\n\u003Cli\u003E\u003Cp\u003E\u003Ccode\u003Etire_pressure_rr\u003C/code\u003E [kPa]: Rear Right tire pressure\u003C/p\u003E\n\u003C/li\u003E\n\u003C/ul\u003E\n\u003Cp\u003ETo enable vehicle individual consumption calibration, we need at least \u003Cem\u003Espeed\u003C/em\u003E, \u003Cem\u003Epower\u003C/em\u003E and \u003Cem\u003Eis_charging\u003C/em\u003E at a rate of at least once per 10 seconds (the faster the better).\u003C/p\u003E\n",
+        "auth": {
+          "type": "apikey",
+          "apikey": {
+            "basicConfig": [
+              {
+                "key": "key",
+                "value": "Authorization"
+              },
+              {
+                "key": "value",
+                "value": "\u003Cvalue\u003E"
+              }
+            ]
+          },
+          "isInherited": true,
+          "source": {
+            "_postman_id": "2116fbab-059f-42e1-b6fd-30e1b96b14c6",
+            "id": "2116fbab-059f-42e1-b6fd-30e1b96b14c6",
+            "name": "Iternio Telemetry API",
+            "type": "collection"
+          }
+        },
+        "urlObject": {
+          "protocol": "https",
+          "path": [
+            "1",
+            "tlm",
+            "send"
+          ],
+          "host": [
+            "api",
+            "iternio",
+            "com"
+          ],
+          "query": [
+            {
+              "key": "token",
+              "value": "\u003CABRP user token\u003E"
+            },
+            {
+              "key": "tlm",
+              "value": "{\"utc\":1553807658,\"soc\":80.4,\"soh\":97.7,\"speed\":0,\"lat\":29.564,\"lon\":-95.025,\"elevation\":50,\"is_charging\":0,\"power\":13.2,\"ext_temp\":25,\"batt_temp\":25,\"car_model\":\"chevy:bolt:17:60:other\",\"current\":36.66,\"voltage\":360}"
+            }
+          ],
+          "variable": []
+        }
+      },
+      "response": [],
+      "_postman_id": "fdb20525-51da-4195-8138-54deabe907d5"
+    },
+    {
+      "name": "bulk",
+      "id": "4f77e0b8-aa60-4a6e-83df-3c3f7fe19aec",
+      "protocolProfileBehavior": {
+        "disableBodyPruning": true
+      },
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"data\": [\n        {\n            \"token\": \"ABRP-USER-TOKEN1\",\n            \"tlm_list\": [\n                {\n                    \"utc\": 1686248362.9229777,\n                    \"soc\": 70.0,\n                    \"power\": 0.0021296592,\n                    \"speed\": 0.0\n                },\n                {\n                    \"utc\": 1686248362.9229777,\n                    \"soc\": 70.0,\n                    \"power\": 0.0021296592,\n                    \"speed\": 0.0\n                }\n            ]\n        },\n        {\n            \"token\": \"ABRP-USER-TOKEN2\",\n            \"tlm_list\": [\n                {\n                    \"utc\": 1686248362.9229777,\n                    \"soc\": 70.0,\n                    \"power\": 0.0021296592,\n                    \"speed\": 0.0\n                },\n                {\n                    \"utc\": 1686248362.9229777,\n                    \"soc\": 70.0,\n                    \"power\": 0.0021296592,\n                    \"speed\": 0.0\n                },\n            ],\n        }\n    ]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "https://api.iternio.com/1/tlm/bulk",
+        "description": "\u003Cp\u003EThis is a secondary method for sending telemetry to the API, allowing multiple data points to be handled in a single call. The individual entries in \u003Ccode\u003Etlm_list\u003C/code\u003E can contain any valid parameter in the \u003Ccode\u003Esend\u003C/code\u003E call.\u003C/p\u003E\n\u003Cp\u003EThis endpoint can handle multiple vehicles and multiple data points per vehicle. There is not a hard limit on the number of data points, but it is recommended to keep bulk packets relatively frequent to avoid too much delay in receipt &amp; display of data.\u003C/p\u003E\n",
+        "auth": {
+          "type": "apikey",
+          "apikey": {
+            "basicConfig": [
+              {
+                "key": "key",
+                "value": "Authorization"
+              },
+              {
+                "key": "value",
+                "value": "\u003Cvalue\u003E"
+              }
+            ]
+          },
+          "isInherited": true,
+          "source": {
+            "_postman_id": "2116fbab-059f-42e1-b6fd-30e1b96b14c6",
+            "id": "2116fbab-059f-42e1-b6fd-30e1b96b14c6",
+            "name": "Iternio Telemetry API",
+            "type": "collection"
+          }
+        },
+        "urlObject": {
+          "protocol": "https",
+          "path": [
+            "1",
+            "tlm",
+            "bulk"
+          ],
+          "host": [
+            "api",
+            "iternio",
+            "com"
+          ],
+          "query": [
+            {
+              "disabled": true,
+              "key": "token",
+              "value": "\u003CABRP user token\u003E"
+            },
+            {
+              "disabled": true,
+              "key": "tlm",
+              "value": ""
+            }
+          ],
+          "variable": []
+        }
+      },
+      "response": [],
+      "_postman_id": "4f77e0b8-aa60-4a6e-83df-3c3f7fe19aec"
+    },
+    {
+      "name": "get_carmodels_list",
+      "id": "e3118d38-3058-49ee-b3fe-d195df4e16ae",
+      "protocolProfileBehavior": {
+        "disableBodyPruning": true
+      },
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "https://api.iternio.com/1/tlm/get_carmodels_list",
+        "description": "\u003Cp\u003EThe Iternio route planner supports a large and growing number of EV models. Similar to the “get_carmodels” method of the planner API, this returns that list of EV models, but without all the extraneous planning details. You will need to include a car model typecode in your telemetry call.\u003C/p\u003E\n\u003Cp\u003EThe method has no input parameters (except the API key). The result is a JSON array of car model name and typecode pairs. Example result:\u003C/p\u003E\n\u003Cpre class=\"click-to-expand-wrapper is-snippet-wrapper\"\u003E\u003Ccode\u003E{\n    \"status\": \"ok\",\n    \"result\": [\n        {\n            \"Tesla;Model 3;Standard Range RWD (alpha)\": \"3standard\"\n        },\n        {\n            \"Tesla;Model 3;Standard Range Plus RWD (beta)\": \"tesla:m3:19:bt36:none\"\n        },\n ...\n\u003C/code\u003E\u003C/pre\u003E",
+        "auth": {
+          "type": "apikey",
+          "apikey": {
+            "basicConfig": [
+              {
+                "key": "key",
+                "value": "Authorization"
+              },
+              {
+                "key": "value",
+                "value": "\u003Cvalue\u003E"
+              }
+            ]
+          },
+          "isInherited": true,
+          "source": {
+            "_postman_id": "2116fbab-059f-42e1-b6fd-30e1b96b14c6",
+            "id": "2116fbab-059f-42e1-b6fd-30e1b96b14c6",
+            "name": "Iternio Telemetry API",
+            "type": "collection"
+          }
+        },
+        "urlObject": {
+          "protocol": "https",
+          "path": [
+            "1",
+            "tlm",
+            "get_carmodels_list"
+          ],
+          "host": [
+            "api",
+            "iternio",
+            "com"
+          ],
+          "query": [],
+          "variable": []
+        }
+      },
+      "response": [],
+      "_postman_id": "e3118d38-3058-49ee-b3fe-d195df4e16ae"
+    },
+    {
+      "name": "get_next_charge",
+      "id": "25662cc1-ae96-4e14-a534-9d23fe6ceeb8",
+      "protocolProfileBehavior": {
+        "disableBodyPruning": true
+      },
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "https://api.iternio.com/1/tlm/get_next_charge?token=\u003Cuser token\u003E",
+        "description": "\u003Cp\u003EThis method retrieves the user’s next charging goal for use in notifying them when their car has reached the desired charge level.\u003C/p\u003E\n\u003Cp\u003EThe result will contain the next charge-to goal [SoC %] for that user’s most recent plan:\u003C/p\u003E\n\u003Cp\u003EResult properties:\u003C/p\u003E\n\u003Cul\u003E\n\u003Cli\u003Enext_charge [SoC %]: User's next goal charge value in percent (0-100)\u003C/li\u003E\n\u003C/ul\u003E\n\u003Cp\u003EExample response:\u003C/p\u003E\n\u003Cpre class=\"click-to-expand-wrapper is-snippet-wrapper\"\u003E\u003Ccode\u003E{\n    \"status\": \"ok\",\n    \"result\": {\n        \"next_charge\": 86.0\n    }\n}\n\u003C/code\u003E\u003C/pre\u003E",
+        "auth": {
+          "type": "apikey",
+          "apikey": {
+            "basicConfig": [
+              {
+                "key": "key",
+                "value": "Authorization"
+              },
+              {
+                "key": "value",
+                "value": "\u003Cvalue\u003E"
+              }
+            ]
+          },
+          "isInherited": true,
+          "source": {
+            "_postman_id": "2116fbab-059f-42e1-b6fd-30e1b96b14c6",
+            "id": "2116fbab-059f-42e1-b6fd-30e1b96b14c6",
+            "name": "Iternio Telemetry API",
+            "type": "collection"
+          }
+        },
+        "urlObject": {
+          "protocol": "https",
+          "path": [
+            "1",
+            "tlm",
+            "get_next_charge"
+          ],
+          "host": [
+            "api",
+            "iternio",
+            "com"
+          ],
+          "query": [
+            {
+              "description": {
+                "content": "\u003Cp\u003EA token identifying the user. This token can be obtained using the live data setup guides in the ABRP app, or, preferably, using our OAuth2 API.\u003C/p\u003E\n",
+                "type": "text/plain"
+              },
+              "key": "token",
+              "value": "\u003Cuser token\u003E"
+            }
+          ],
+          "variable": []
+        }
+      },
+      "response": [],
+      "_postman_id": "25662cc1-ae96-4e14-a534-9d23fe6ceeb8"
+    },
+    {
+      "name": "set_next_charge",
+      "id": "f3488e7e-2625-4afb-afd9-64505aabc51c",
+      "protocolProfileBehavior": {
+        "disableBodyPruning": true
+      },
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "https://api.iternio.com/1/tlm/set_next_charge?token=\u003Cuser token\u003E&next_charge_to_perc=73.0",
+        "description": "\u003Cp\u003EThis method set the user’s next charging goal [SoC %]. This can be done by an application which actively tracks the users progress along the plan, for example the ABRP app driving mode.\u003C/p\u003E\n",
+        "auth": {
+          "type": "apikey",
+          "apikey": {
+            "basicConfig": [
+              {
+                "key": "key",
+                "value": "Authorization"
+              },
+              {
+                "key": "value",
+                "value": "\u003Cvalue\u003E"
+              }
+            ]
+          },
+          "isInherited": true,
+          "source": {
+            "_postman_id": "2116fbab-059f-42e1-b6fd-30e1b96b14c6",
+            "id": "2116fbab-059f-42e1-b6fd-30e1b96b14c6",
+            "name": "Iternio Telemetry API",
+            "type": "collection"
+          }
+        },
+        "urlObject": {
+          "protocol": "https",
+          "path": [
+            "1",
+            "tlm",
+            "set_next_charge"
+          ],
+          "host": [
+            "api",
+            "iternio",
+            "com"
+          ],
+          "query": [
+            {
+              "description": {
+                "content": "\u003Cp\u003EA token identifying the user. This token can be obtained using the live data setup guides in the ABRP app, or, preferably, using our OAuth2 API.\u003C/p\u003E\n",
+                "type": "text/plain"
+              },
+              "key": "token",
+              "value": "\u003Cuser token\u003E"
+            },
+            {
+              "description": {
+                "content": "\u003Cp\u003EThe SoC % to charge to at the next charging stop.\u003C/p\u003E\n",
+                "type": "text/plain"
+              },
+              "key": "next_charge_to_perc",
+              "value": "73.0"
+            }
+          ],
+          "variable": []
+        }
+      },
+      "response": [],
+      "_postman_id": "f3488e7e-2625-4afb-afd9-64505aabc51c"
+    },
+    {
+      "name": "send_torque",
+      "id": "7fa1b5b9-ae37-4ced-8a27-f126c8dde5bf",
+      "protocolProfileBehavior": {
+        "disableBodyPruning": true
+      },
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "https://api.iternio.com/1/tlm/ampera66?eml=\u003Ceml\u003E&time=1699342998030.0852",
+        "description": "\u003Cp\u003EThis method set the user’s next charging goal [SoC %]. This can be done by an application which actively tracks the users progress along the plan, for example the ABRP app driving mode.\u003C/p\u003E\n",
+        "auth": {
+          "type": "apikey",
+          "apikey": {
+            "basicConfig": [
+              {
+                "key": "key",
+                "value": "Authorization"
+              },
+              {
+                "key": "value",
+                "value": "\u003Cvalue\u003E"
+              }
+            ]
+          },
+          "isInherited": true,
+          "source": {
+            "_postman_id": "2116fbab-059f-42e1-b6fd-30e1b96b14c6",
+            "id": "2116fbab-059f-42e1-b6fd-30e1b96b14c6",
+            "name": "Iternio Telemetry API",
+            "type": "collection"
+          }
+        },
+        "urlObject": {
+          "protocol": "https",
+          "path": [
+            "1",
+            "tlm",
+            "ampera66"
+          ],
+          "host": [
+            "api",
+            "iternio",
+            "com"
+          ],
+          "query": [
+            {
+              "key": "eml",
+              "value": "\u003Ceml\u003E"
+            },
+            {
+              "key": "time",
+              "value": "1699342998030.0852"
+            }
+          ],
+          "variable": []
+        }
+      },
+      "response": [],
+      "_postman_id": "7fa1b5b9-ae37-4ced-8a27-f126c8dde5bf"
+    },
+    {
+      "name": "get_telemetry",
+      "id": "dd1ee24f-26d5-44fb-a251-a1b8ec3c950d",
+      "protocolProfileBehavior": {
+        "disableBodyPruning": true
+      },
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "https://api.iternio.com/1/tlm/get_telemetry?token=\u003Cuser token\u003E",
+        "description": "\u003Cp\u003EGet the latest telemetry from a vehicle identified with a token. Returns a subset of properties from the telemetry object.\u003C/p\u003E\n",
+        "auth": {
+          "type": "apikey",
+          "apikey": {
+            "basicConfig": [
+              {
+                "key": "key",
+                "value": "Authorization"
+              },
+              {
+                "key": "value",
+                "value": "\u003Cvalue\u003E"
+              }
+            ]
+          },
+          "isInherited": true,
+          "source": {
+            "_postman_id": "2116fbab-059f-42e1-b6fd-30e1b96b14c6",
+            "id": "2116fbab-059f-42e1-b6fd-30e1b96b14c6",
+            "name": "Iternio Telemetry API",
+            "type": "collection"
+          }
+        },
+        "urlObject": {
+          "protocol": "https",
+          "path": [
+            "1",
+            "tlm",
+            "get_telemetry"
+          ],
+          "host": [
+            "api",
+            "iternio",
+            "com"
+          ],
+          "query": [
+            {
+              "key": "token",
+              "value": "\u003Cuser token\u003E"
+            }
+          ],
+          "variable": []
+        }
+      },
+      "response": [],
+      "_postman_id": "dd1ee24f-26d5-44fb-a251-a1b8ec3c950d"
+    }
+  ],
+  "auth": {
+    "type": "apikey",
+    "apikey": {
+      "basicConfig": [
+        {
+          "key": "key",
+          "value": "Authorization"
+        },
+        {
+          "key": "value",
+          "value": "\u003Cvalue\u003E"
+        }
+      ]
+    }
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "id": "32c75966-bbfc-45d3-8995-750a2bb7d89b",
+        "type": "text/javascript",
+        "exec": [
+          ""
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "id": "cbc83c04-351d-46d4-ad9a-507af9de5c53",
+        "type": "text/javascript",
+        "exec": [
+          ""
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "api_key",
+      "value": ""
+    }
+  ]
+}
+
+Example Request:
+curl --location -g --request POST 'https://api.iternio.com/1/tlm/send?token=%3CABRP%20user%20token%3E&tlm={%22utc%22%3A1553807658%2C%22soc%22%3A80.4%2C%22soh%22%3A97.7%2C%22speed%22%3A0%2C%22lat%22%3A29.564%2C%22lon%22%3A-95.025%2C%22elevation%22%3A50%2C%22is_charging%22%3A0%2C%22power%22%3A13.2%2C%22ext_temp%22%3A25%2C%22batt_temp%22%3A25%2C%22car_model%22%3A%22chevy%3Abolt%3A17%3A60%3Aother%22%2C%22current%22%3A36.66%2C%22voltage%22%3A360}' \
+--data ''
