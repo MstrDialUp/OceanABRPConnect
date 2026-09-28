@@ -59,6 +59,8 @@ The functional (broadcast) request ID is 7DF.
 | HV state of charge | BMS | 2050 | uint16 ÷ 10 = % |
 | 12 V battery | VCU | EFF9 | uint16 ÷ 1000 = V |
 
+All four were verified against the dash on 2026-09-28 (Ocean OS 2.2.3, vLinker FD+ reporting `ELM327 v2.2`), and each is marked `verified: true` in `ocean.json`.
+
 Not known yet: speed, pack voltage, pack current (and so power), charging state, gear, and temperatures. The OBDb community signal set for the Ocean is empty. Phase 1 exists to find these values.
 
 ### 1.4 Read-only rule
@@ -102,8 +104,8 @@ Reference copies are in `docs/abrp/`: the Postman collection (`iternio-telemetry
 |---|---|---|
 | `utc`, `lat`, `lon`, `heading`, `elevation` | phone GPS | available |
 | `speed` | car if found, else GPS | GPS available |
-| `soc` | BMS 2050 | known; check it matches the dash |
-| `odometer` | BCM 3409 | known |
+| `soc` | BMS 2050 | verified |
+| `odometer` | BCM 3409 | verified |
 | `power`, `voltage`, `current` | BMS (expected) | Phase 1 |
 | `is_charging`, `is_dcfc` | BMS / OHC / PDU | Phase 1; fallback: current < 0 while stationary |
 | `is_parked` | VCU gear | Phase 1; fallback: GPS speed 0 for 60 s |

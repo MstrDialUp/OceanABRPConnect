@@ -1,6 +1,8 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ocean_abrp_connect/elm/elm_response.dart';
+import 'package:ocean_abrp_connect/uds/uds_client.dart';
 import 'package:ocean_abrp_connect/signals/signal_table.dart';
 import 'package:ocean_abrp_connect/util/units.dart';
 
@@ -44,6 +46,25 @@ void main() {
       expect(() => table.byId('odometer')!.decode([0x01, 0x02]),
           throwsA(isA<SignalDecodeException>()));
     });
+  });
+
+  // Replies captured on the car (OS 2.2.3, 2026-09-28) and checked against the
+  // dash. The VIN reply is left out on purpose.
+  group('captured on the car', () {
+    for (final (id, reply, expected) in [
+      ('odometer', '7C907623409003B2950', 38772.0),
+      ('odometer', '7C907623409003B2964', 38772.2),
+      ('soc', '7E9056220500280', 64.0),
+      ('soc', '7E905622050027F', 63.9),
+      ('aux_voltage', '7CA0562EFF936FC', 14.076),
+      ('aux_voltage', '7CA0562EFF93728', 14.12),
+    ]) {
+      test('$id $reply', () {
+        final s = table.byId(id)!;
+        final r = UdsClient.interpretDidResponse(ElmResponse.parse(reply), s.module, s.did);
+        expect(s.decode((r as ReadValue).data), closeTo(expected, 1e-9));
+      });
+    }
   });
 
   test('signed decoding', () {
