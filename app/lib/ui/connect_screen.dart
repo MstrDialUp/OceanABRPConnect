@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 
+import '../app/app_settings.dart';
 import '../util/units.dart';
+import 'settings_screen.dart';
 import 'connect_controller.dart';
 
 class ConnectScreen extends StatefulWidget {
-  const ConnectScreen({super.key, required this.controller, required this.units});
+  const ConnectScreen({super.key, required this.controller, required this.settings});
 
   final ConnectController controller;
-  final ValueNotifier<UnitSystem> units;
+  final AppSettings settings;
 
   @override
   State<ConnectScreen> createState() => _ConnectScreenState();
@@ -21,16 +23,17 @@ class _ConnectScreenState extends State<ConnectScreen> {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: Listenable.merge([c, widget.units]),
+      listenable: Listenable.merge([c, widget.settings]),
       builder: (context, _) => Scaffold(
         appBar: AppBar(
           title: const Text('Connect'),
           actions: [
-            TextButton(
-              onPressed: () => widget.units.value = widget.units.value == UnitSystem.imperial
-                  ? UnitSystem.metric
-                  : UnitSystem.imperial,
-              child: Text(widget.units.value == UnitSystem.imperial ? 'Imperial' : 'Metric'),
+            IconButton(
+              icon: const Icon(Icons.settings),
+              tooltip: 'Settings',
+              onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => SettingsScreen(settings: widget.settings),
+              )),
             ),
           ],
         ),
@@ -147,7 +150,7 @@ class _ConnectScreenState extends State<ConnectScreen> {
     final v = r.value;
     final String shown;
     if (v is double) {
-      final d = toDisplay(v, r.signal.unit, widget.units.value);
+      final d = toDisplay(v, r.signal.unit, widget.settings.units);
       shown = d.format(decimals: r.signal.unit == 'V' ? 2 : 1);
     } else {
       shown = v?.toString() ?? '—';

@@ -53,22 +53,58 @@ class ElmTransport {
 
   Future<String> send(String command, {Duration? timeout}) {
     final (cmd, kind) = CommandPolicy.check(command);
-    final result = _queue.then((_) => _send(cmd, kind, timeout ?? defaultTimeout));
+    return _enqueue(() => _send(cmd, kind, timeout ?? defaultTimeout));
+  }
+
+  Future<T> _enqueue<T>(Future<T> Function() job) {
+    final result = _queue.then((_) => job());
     _queue = result.then((_) {}, onError: (_) {});
     return result;
   }
 
-  Future<String> _send(String cmd, CommandKind kind, Duration timeout) async {
-    if (kind == CommandKind.bus) {
-      if (!gate.isOpen) throw BusClosedException(cmd);
-      final last = _lastBusSend;
-      if (last != null) {
-        final wait = minBusInterval - DateTime.now().difference(last);
-        if (wait > Duration.zero) await Future<void>.delayed(wait);
-      }
-      _lastBusSend = DateTime.now();
-    }
+  /// Passively listens to the bus with `ATMA` for [duration] and returns the
+  /// lines seen (PLAN.md §4.1). The adapter stays silent on the bus (CAN
+  /// silent monitoring is on by default). Monitoring is stopped by sending a
+  /// space, which the ELM327 discards.
+  Future<List<String>> monitor(Duration duration) {
+    final (cmd, kind) = CommandPolicy.check('ATMA');
+    return _enqueue(() => _monitor(cmd, kind, duration));
+  }
 
+  Future<List<String>> _monitor(String cmd, CommandKind kind, Duration duration) async {
+    await _beforeSend(cmd, kind);
+    _buffer.clear();
+    final completer = _pending = Completer<String>();
+    onTrace?.call('> $cmd');
+    await _link.write(ascii.encode('$cmd\r'));
+    // The adapter may stop early by itself (e.g. BUFFER FULL).
+    await Future.any([completer.future, Future<void>.delayed(duration)]);
+    if (!completer.isCompleted) await _link.write(ascii.encode(' '));
+    String reply;
+    try {
+      reply = await completer.future.timeout(defaultTimeout);
+    } on TimeoutException {
+      reply = _clean(_buffer.toString());
+      _pending = null;
+    }
+    final lines = reply.split('\r').where((l) => l.isNotEmpty && l != 'STOPPED').toList();
+    onTrace?.call('< ATMA: ${lines.length} lines');
+    return lines;
+  }
+
+  Future<void> _beforeSend(String cmd, CommandKind kind) async {
+    if (kind != CommandKind.bus) return;
+    if (!gate.isOpen) throw BusClosedException(cmd);
+    final last = _lastBusSend;
+    if (last != null) {
+      final wait = minBusInterval - DateTime.now().difference(last);
+      if (wait > Duration.zero) await Future<void>.delayed(wait);
+    }
+    _lastBusSend = DateTime.now();
+  }
+
+  Future<String> _send(String cmd, CommandKind kind, Duration timeout) async {
+    await _beforeSend(cmd, kind);
     _buffer.clear();
     final completer = _pending = Completer<String>();
     onTrace?.call('> $cmd');

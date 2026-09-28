@@ -2,7 +2,7 @@
 
 A Flutter phone app (Android first) that reads live data from a Fisker Ocean through a vLinker FD+ OBD dongle and sends it to A Better Route Planner (ABRP) using the ABRP "Generic" live-data token.
 
-Status: revision 5. Phase 1a implemented (see §6.1); awaiting on-car test.
+Status: revision 6. Phases 1a and 1b implemented (see §6.1, §6.2); awaiting on-car test.
 
 ---
 
@@ -161,6 +161,7 @@ app/                 Flutter app
 app/assets/signals/  ocean.json signal table
 tools/analyze/       Python scripts for analysing recorded sessions
 data/sessions/       exported recordings (JSONL)
+data/discovery/      exported discovery.json sweep results
 docs/abrp/           ABRP API reference copies
 .github/workflows/   APK build
 CLAUDE.md
@@ -274,6 +275,19 @@ Done in `app/`:
 - 96 unit tests (allow-list, gate, framing, ISO-TP, UDS, decoders, units), plus `.github/workflows/build-apk.yml`.
 
 To test on the car: open the Connect screen, scan, and tap the vLinker. Check `ATI` and `ATRV` with the car off (it should show "Car off", and no bus request is possible). Then put the car in Ready, tap "Read known values", and compare VIN, SOC, odometer and 12 V with the dash. Mark each confirmed signal `verified: true` in `ocean.json`.
+
+### 6.2 Phase 1b status
+Done in `app/`:
+- **Discover tab** (`discovery/`): sweeps the §4.1 DID ranges on every module in `ocean.json` (2,304 DIDs per module, about 30 min for all nine at the rate cap), then probes OBD mode `01` PIDs on 7DF and does a 5 s passive `ATMA` listen. Before starting it asks you to confirm you're parked in Ready. Progress is saved to `discovery.json` every 32 requests and on stop, so it resumes where it left off. A module that doesn't answer its first 8 requests is marked silent and skipped, and one that returns "serviceNotSupported" is skipped too. `requestOutOfRange` (NRC 0x31) is treated as "DID doesn't exist". Any other NRC is recorded as "exists but refused". The sweep re-checks `ATRV` every 30 s and pauses if the car turns off. "Share results" exports `discovery.json` (commit it to `data/discovery/`).
+- **Record tab** (`recorder/`): polls every DID that answered with data in the sweep, plus the known signals, in a weighted round-robin (BMS, VCU and MCUs get 3 turns per 1 for the others). GPS is logged about once a second. `ATRV` is re-read every 30 s. While the car is off nothing is polled and only GPS is recorded. After 20 unanswered requests in a row the gate closes until the next voltage check.
+- **Foreground service**: flutter_foreground_task with types `connectedDevice|location` and a wake lock. It only keeps the process alive: BLE and GPS stay in the main isolate, because flutter_blue_plus is bound to the main Flutter engine. Swiping the app away from recents ends the recording, and the session is then saved without a footer; the Sessions list marks it "interrupted".
+- **Stop checklist** (§4.2) with optional dash readings typed in display units and converted to metric before saving, plus notes.
+- **Session files** (§4.3): `session_YYYYMMDD_HHMMSS.jsonl` in the app's documents folder. Line types: `header`, `did` (`raw` hex after the DID echo), `nrc`, `gps` (`spd` km/h, `hdg`, `alt`, `acc`, `fix_t`), `atrv` (`v`), `event`, `footer` (`checklist` keys, `dash` {`soc`, `range_km`, `ext_temp_c`, `odometer_km`}, `notes`). `t` is epoch ms.
+- **Sessions tab**: duration, size, OS version and checklist summary, with share and delete buttons.
+- **Settings** (gear on Connect): Imperial/Metric and the car OS version, stored in `settings.json`.
+- 111 unit tests.
+
+To test: Connect, then on Discover run the sweep while parked in Ready (it can be split over several sittings). Then on Record, start before a commute, lock the phone, and stop afterwards. Share the session and `discovery.json` from the app and commit them to `data/sessions/` and `data/discovery/`.
 
 APK delivery: `.github/workflows/build-apk.yml` runs `flutter test` and `flutter build apk --debug` on every push. The APK is attached to the workflow run as a downloadable artifact, which you sideload on the Pixel ("Install unknown apps" enabled for your browser or Files app). A debug build signs with a debug key, so each new version installs over the previous one without uninstalling.
 

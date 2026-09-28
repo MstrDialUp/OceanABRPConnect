@@ -54,19 +54,29 @@ class UdsClient {
 
   final ElmClient elm;
 
-  Future<ReadResult> readDid(EcuModule module, int did) async {
-    await elm.select(module);
-    final didHex = did.toRadixString(16).padLeft(4, '0').toUpperCase();
-    final response = await elm.request('22$didHex');
-    return interpretDidResponse(response, module, did);
+  /// Addressing and request must not interleave between callers (Connect,
+  /// Discover and Record share one adapter), so reads run one at a time.
+  Future<void> _lock = Future.value();
+
+  Future<T> _exclusive<T>(Future<T> Function() job) {
+    final result = _lock.then((_) => job());
+    _lock = result.then((_) {}, onError: (_) {});
+    return result;
   }
 
-  Future<ReadResult> readObdPid(int pid) async {
-    await elm.select(EcuModule.functional);
-    final pidHex = pid.toRadixString(16).padLeft(2, '0').toUpperCase();
-    final response = await elm.request('01$pidHex');
-    return interpretObdResponse(response, pid);
-  }
+  Future<ReadResult> readDid(EcuModule module, int did) => _exclusive(() async {
+        await elm.select(module);
+        final didHex = did.toRadixString(16).padLeft(4, '0').toUpperCase();
+        final response = await elm.request('22$didHex');
+        return interpretDidResponse(response, module, did);
+      });
+
+  Future<ReadResult> readObdPid(int pid) => _exclusive(() async {
+        await elm.select(EcuModule.functional);
+        final pidHex = pid.toRadixString(16).padLeft(2, '0').toUpperCase();
+        final response = await elm.request('01$pidHex');
+        return interpretObdResponse(response, pid);
+      });
 
   static ReadResult interpretDidResponse(ElmResponse r, EcuModule module, int did) {
     final (messages, failure) = _reassemble(r);

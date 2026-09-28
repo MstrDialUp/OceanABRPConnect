@@ -61,6 +61,25 @@ class ConnectController extends ChangeNotifier {
 
   bool get carOn => _transport?.gate.isOpen ?? false;
 
+  /// The live UDS client while connected, shared with Discover and Record.
+  UdsClient? get uds => state == LinkState.connected ? _uds : null;
+
+  /// Reads the VIN if the car is on; null otherwise.
+  Future<String?> readVin() async {
+    final u = uds;
+    final vin = table.byId('vin');
+    if (u == null || vin == null || !carOn) return null;
+    try {
+      final r = await u.readDid(vin.module, vin.did);
+      return r is ReadValue ? vin.decode(r.data) as String : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Lets other screens refresh the connect view after an ATRV check.
+  void refresh() => notifyListeners();
+
   static bool looksLikeAdapter(ScanResult r) {
     final name = r.device.platformName.toLowerCase();
     return name.contains('vlink') || name.contains('obd') || name.contains('elm');

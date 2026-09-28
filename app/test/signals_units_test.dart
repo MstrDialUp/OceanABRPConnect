@@ -75,6 +75,15 @@ void main() {
       expect(toDisplay(80, '%', UnitSystem.imperial).unit, '%');
     });
 
+    test('fromDisplay inverts toDisplay', () {
+      for (final unit in ['km', 'km/h', '°C', 'kPa', 'Wh/km', '%']) {
+        final shown = toDisplay(123.4, unit, UnitSystem.imperial).value;
+        expect(fromDisplay(shown, unit, UnitSystem.imperial), closeTo(123.4, 1e-9), reason: unit);
+      }
+      expect(displayUnit('km', UnitSystem.imperial), 'mi');
+      expect(displayUnit('km', UnitSystem.metric), 'km');
+    });
+
     test('format', () {
       expect(const DisplayValue(12.345, 'V').format(decimals: 2), '12.35 V');
     });
