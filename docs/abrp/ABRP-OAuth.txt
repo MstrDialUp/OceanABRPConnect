@@ -1,0 +1,37 @@
+Authorization Flow
+The first call returns an HTML page where users can log in and approve your application. If opened in the user's default browser, their login may be cached to simplify the process.
+
+https://abetterrouteplanner.com/oauth/auth?client_id=<your_client_id>&scope=<requested_scope>&response_type=code&redirect_uri=<your_redirect_uri>
+Allowed scopes:
+get_telemetry: Retrieve user's latest telemetry
+set_telemetry: Push new telemetry updates to the vehicle
+get_plan: Get the latest plan in condensed form (contact us for details)
+vehicle_history: Retrieve historic drives and charging sessions (contact us for details)
+Response at your redirect URI:
+https://your_redirect_uri?state=<state_provided>&auth_code=<returned_auth_code>
+
+Token Retrieval
+Once you receive an authorization code, retrieve the token which can be stored and reused as needed.
+
+https://api.iternio.com/1/oauth/token?client_id=<your_client_id>&client_secret=<your_api_key>&code=<auth_code>
+Response format:
+{
+  "access_token": "<the created token>",
+  "token_type": "bearer",
+  "state": "<your supplied state>"
+}
+
+
+User Information
+After obtaining the token, use the "me" endpoint to retrieve user information:
+
+https://api.iternio.com/1/oauth/me?access_token=<the user token>&api_key=<your api key>
+Response format:
+{
+  "user_id": <the numeric ID of the user>,
+  "full_name": "<Full name of the user>",
+  "email": "<Email of user>",
+  "vehicle_id": <The numeric ID of the vehicle, if part of the scope>,
+  "vehicle_name": "<The vehicle name>",
+  "vehicle_typecode": "<The vehicle typecode>"
+}
