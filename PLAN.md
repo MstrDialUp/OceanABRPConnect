@@ -2,7 +2,7 @@
 
 A Flutter phone app (Android first) that reads live data from a Fisker Ocean through a vLinker FD+ OBD dongle and sends it to A Better Route Planner (ABRP) using the ABRP "Generic" live-data token.
 
-Status: planning, revision 3.
+Status: planning, revision 4.
 
 ---
 
@@ -18,6 +18,7 @@ Status: planning, revision 3.
 | Dongle | vLinker FD+ stays plugged in permanently. The app must never keep the car awake (see §5.4). |
 | Discovery | You will record sessions on your daily commute and while charging. The app gets a Start/Stop Recording button and a checklist on stop (see §4). |
 | Audience | Personal use first. Sharing with other Ocean owners later is possible, so nothing should block that path (see §7). |
+| Development | Phase 1a onward is developed on your local machine (Flutter + Android SDK installed), with the Pixel connected over USB or wireless ADB. GitHub stays the source of truth; GitHub Actions still builds APKs as CI. See §9. |
 | Reference code | The Unfiskered Go HTML has been removed from the repo. The code is written from public standards: the ELM327 datasheet, ISO 15765-2 (ISO-TP) and ISO 14229 (UDS). The only things carried over are the module addresses and data identifiers listed in §1, and each one is verified on your car before use. |
 
 ---
@@ -65,10 +66,18 @@ The app only sends ELM327 `AT` setup commands and UDS `0x22` ReadDataByIdentifie
 
 ## 2. ABRP Telemetry API
 
-Reference copies are in `docs/abrp/`. What they confirm:
+Reference copies are in `docs/abrp/`: the Postman collection (`iternio-telemetry.json`), a PDF of the full page, extracts for `tlm/send` and `get_next_charge`, and the OAuth notes. What they confirm:
 - Base URL `https://api.iternio.com/1/`. Every endpoint accepts GET or POST, with URL-encoded parameters (in the query string for GET, in the body for POST).
 - Every response is JSON with two mandatory fields: `status` (`"ok"`, `"error"` or a more specific string) and `result`. The API returns HTTP 200 even for application errors; non-200 codes mean a bad API key or wrong usage.
-- Besides `tlm/send`, two more endpoints exist: `get_next_charge` (the charge-to SOC for the next stop while driving) and `get_latest_plan` (the user's latest plan).
+- Endpoints in the `tlm/` group:
+  - `send`: one telemetry point. The main endpoint.
+  - `bulk`: several points in one call (`{"data":[{"token":…,"tlm_list":[…]}]}`). Used to flush points buffered during a signal loss (§5.1).
+  - `get_carmodels_list`: ABRP model typecodes, used to find the Ocean's `car_model` code.
+  - `get_telemetry`: the latest telemetry ABRP holds for a token. Used by a "Test link" button and during development to confirm data arrived.
+  - `get_next_charge` / `set_next_charge`: the charge-to SOC goal of the current plan. A later "charging done" notification can use it.
+- **Processing delay:** ABRP batches telemetry and waits 60 s for all sources. Data sent only within one 60 s window is not processed until data for the next minute arrives. A short test must therefore send for at least 2 minutes.
+- **Rate:** one point every 5 s is the desired rate; slower than one per 30 s is recommended against.
+- **Errors:** when `status` is not `"ok"`, details are in an `errors` property of the response.
 - OAuth2 (`ABRP-OAuth.txt`) uses a client ID, a redirect URI, and scopes `set_telemetry` / `get_telemetry`. Only needed for sharing (§7).
 
 ### 2.1 Endpoint
@@ -76,12 +85,14 @@ Reference copies are in `docs/abrp/`. What they confirm:
 
 - `api_key`: identifies the app. Keys are free and requested from contact@iternio.com (draft email in Appendix A). The key goes in a query parameter or in the header `Authorization: APIKEY <key>`.
 - `token`: identifies your car in ABRP. Where to find it: ABRP → Settings → your Ocean → Modify connections → Generic → Link.
-- `tlm`: a JSON object with the telemetry fields.
+- `tlm`: a JSON object with the telemetry fields, including an optional `car_model` typecode (e.g. `chevy:bolt:17:60:other`). The Ocean's typecode comes from `get_carmodels_list`.
+- The documented example sends `token` and `tlm` as URL query parameters with POST.
 
 ### 2.2 Fields
 - **High priority:** `utc` (epoch seconds), `soc` (%), `power` (kW; positive = discharging, negative = charging), `speed` (km/h), `lat`, `lon`, `is_charging`, `is_dcfc`, `is_parked`.
 - **Lower priority:** `capacity`, `soe`, `soh`, `heading`, `elevation`, `ext_temp`, `batt_temp`, `voltage`, `current`, `odometer`, `est_battery_range`, `hvac_power`, `hvac_setpoint`, `cabin_temp`, `tire_pressure_fl/fr/rl/rr` (kPa).
 - **Consumption calibration:** ABRP needs `speed`, `power` and `is_charging` at least every 10 s.
+- **Units:** everything is sent in metric; ABRP converts for display.
 
 ### 2.3 Field sources
 
@@ -95,14 +106,6 @@ Reference copies are in `docs/abrp/`. What they confirm:
 | `is_charging`, `is_dcfc` | BMS / OHC / PDU | Phase 1; fallback: current < 0 while stationary |
 | `is_parked` | VCU gear | Phase 1; fallback: GPS speed 0 for 60 s |
 | `batt_temp`, `ext_temp`, `soh`, `est_battery_range`, `tire_pressure_*` | various | Phase 1, nice to have |
-
-### 2.4 Still needed from the Postman docs
-The saved HTML contains only the introduction; the endpoint pages load through JavaScript and were not captured. Still needed:
-1. **`tlm/send`**: every parameter and the example responses, especially errors (bad token, bad key, rate limit).
-2. **The `tlm` field list**, in case it has fields beyond §2.2.
-3. **`get_next_charge` and `get_latest_plan`**: parameters and example responses (optional; useful for a later "charge to X%" display).
-
-Until then, the uploader treats any `status` other than `"ok"` as an error and shows the `result` text on the status screen.
 
 ---
 
@@ -158,6 +161,7 @@ tools/analyze/       Python scripts for analysing recorded sessions
 data/sessions/       exported recordings (JSONL)
 docs/abrp/           ABRP API reference copies
 .github/workflows/   APK build
+CLAUDE.md
 PLAN.md
 ```
 
@@ -224,7 +228,8 @@ Python scripts I run on your committed sessions:
 - Setup: paste the ABRP token once. The API key is bundled with the build for personal use; §7 covers sharing.
 - While linked: poll the confirmed signals at 1 Hz (SOC, speed, power) and slower for odometer and temperatures.
 - Upload every 5 s while driving and every 30 s while parked or charging.
-- On network loss: keep only the latest snapshot and send it on reconnect. ABRP has no use for old data.
+- On network loss: buffer points (capped at about 1 hour at 5 s spacing) and flush them with `tlm/bulk` on reconnect. The buffered points still help ABRP's consumption model for your car.
+- Settings has a "Test link" button: send points for 2 minutes (because of the 60 s processing delay), then read them back with `get_telemetry`.
 
 ### 5.2 Status screen
 Connection state, the latest values, the last upload time and result, and the ABRP error text if any.
@@ -246,7 +251,7 @@ While the phone is near the car the dongle is always advertising, so the app can
 
 | Phase | What | Who |
 |---|---|---|
-| 0 | Email Iternio (Appendix A). Get the ABRP Generic token. Add the Postman doc copies (§2.4). Install Flutter and Android SDK locally, or build APKs via GitHub Actions. | you |
+| 0 | Email Iternio (Appendix A). Get the ABRP Generic token. Set up local development (§9.2). | you |
 | 1a | Flutter scaffold, BLE transport, ELM/UDS layers with unit tests, Connect screen verifying the known values. | me → you test |
 | 1b | Discovery sweep, recorder, checklist, session export. | me → you test |
 | 1c | Record commute and charging sessions; commit them to `data/sessions/`. | you |
@@ -269,7 +274,25 @@ APK delivery: `.github/workflows/build-apk.yml` runs `flutter test` and `flutter
 ---
 
 ## 8. Remaining open questions
-1. The rest of the ABRP Postman docs (§2.4). Not blocking: Phase 1 does not talk to ABRP.
+None at the moment.
+
+---
+
+## 9. Development environment
+
+### 9.1 Why local
+- **Hardware:** Phase 1 depends on the BLE link to the vLinker and on the car. Only your machine and phone can reach them.
+- **Iteration speed:** `flutter run` on the Pixel gives hot reload and live logs (`flutter logs` / logcat). Debugging BLE timing through downloaded CI builds would take one full CI run per attempt.
+- **The cloud container can't build Android:** its network policy blocks the Android SDK download host (`dl.google.com`). It could run pure-Dart unit tests, but not build or run the app.
+
+### 9.2 Setup
+1. Clone the repo on your machine.
+2. Confirm `flutter doctor` passes for Android. Enable USB debugging (or wireless debugging) on the Pixel.
+3. Run Claude Code locally in the repo (CLI, desktop app or IDE extension). `CLAUDE.md` and this plan carry the project context into that session.
+4. Use short-lived feature branches and PRs into `main`, so GitHub Actions runs on every change.
+
+### 9.3 What stays in the cloud (optional)
+Anything that doesn't need hardware, such as analysing recorded sessions (`tools/analyze/`) or reviewing PRs, can run in either environment, because everything goes through the repo.
 
 ---
 
