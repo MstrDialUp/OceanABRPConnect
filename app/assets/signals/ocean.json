@@ -1,0 +1,68 @@
+{
+  "car": "Fisker Ocean",
+  "os_version": "2.2.3",
+  "notes": "Module IDs and DIDs from PLAN.md §1.2/§1.3. 'verified' flips to true once a value is checked against the dash on the car. Multi-byte values are big-endian; 'offset' counts from the first data byte after the DID echo.",
+  "modules": {
+    "BMS":   { "tx": "7E1", "rx": "7E9" },
+    "VCU":   { "tx": "7C2", "rx": "7CA" },
+    "BCM":   { "tx": "7C1", "rx": "7C9" },
+    "MCU_F": { "tx": "786", "rx": "78E" },
+    "MCU_R": { "tx": "7F2", "rx": "7FA" },
+    "OHC":   { "tx": "783", "rx": "78B" },
+    "PDU":   { "tx": "7F3", "rx": "7FB" },
+    "ESP":   { "tx": "7D0", "rx": "7D8" },
+    "ECC":   { "tx": "7F0", "rx": "7F8" }
+  },
+  "signals": [
+    {
+      "id": "vin",
+      "name": "VIN",
+      "module": "VCU",
+      "did": "F190",
+      "type": "ascii",
+      "poll_s": 0,
+      "verified": false
+    },
+    {
+      "id": "odometer",
+      "name": "Odometer",
+      "module": "BCM",
+      "did": "3409",
+      "type": "uint",
+      "offset": 0,
+      "length": 4,
+      "scale": 0.01,
+      "unit": "km",
+      "abrp": "odometer",
+      "poll_s": 60,
+      "verified": false
+    },
+    {
+      "id": "soc",
+      "name": "HV state of charge",
+      "module": "BMS",
+      "did": "2050",
+      "type": "uint",
+      "offset": 0,
+      "length": 2,
+      "scale": 0.1,
+      "unit": "%",
+      "abrp": "soc",
+      "poll_s": 1,
+      "verified": false
+    },
+    {
+      "id": "aux_voltage",
+      "name": "12 V battery",
+      "module": "VCU",
+      "did": "EFF9",
+      "type": "uint",
+      "offset": 0,
+      "length": 2,
+      "scale": 0.001,
+      "unit": "V",
+      "poll_s": 30,
+      "verified": false
+    }
+  ]
+}

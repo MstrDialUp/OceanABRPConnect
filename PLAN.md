@@ -2,7 +2,7 @@
 
 A Flutter phone app (Android first) that reads live data from a Fisker Ocean through a vLinker FD+ OBD dongle and sends it to A Better Route Planner (ABRP) using the ABRP "Generic" live-data token.
 
-Status: planning, revision 4.
+Status: revision 5. Phase 1a implemented (see §6.1); awaiting on-car test.
 
 ---
 
@@ -31,6 +31,8 @@ Gathered from reviewing Unfiskered Go v6. Every item here is re-verified in Phas
 ELM327 text commands over BLE, each ending with `\r`. A reply is complete when the `>` prompt arrives. Setup sequence: `ATZ` (reset), `ATE0` (echo off), `ATS0` (no spaces), `ATH1` (headers on), `ATSP6` (ISO 15765-4 CAN, 11-bit IDs, 500 kbps).
 
 To address one module: `ATSH<tx>` sets the request ID, `ATFCSH<tx>` sets the flow-control header, `ATCRA<rx>` filters for the reply ID, then the UDS request is sent.
+
+As implemented (Phase 1a): setup also sends `ATL0` (no linefeeds) and `ATFCSD300000` (flow-control data: clear to send, no block limit, no separation time). `ATFCSM1` (user-defined flow control) is enabled on the first physical module selection. For the 7DF functional address the app sends `ATSH7DF`, `ATAR` and `ATFCSM0`. Headers are only re-sent when the module changes. With `ATH1` the adapter prints raw frames including the ISO-TP PCI byte, and the app does the reassembly itself.
 
 ### 1.2 Module CAN IDs (request/response, hex)
 
@@ -134,7 +136,7 @@ Reference copies are in `docs/abrp/`: the Postman collection (`iternio-telemetry
 ```
 
 ### 3.1 Flutter packages (initial picks)
-- `flutter_blue_plus`: BLE. Check its licence terms before any public distribution.
+- `flutter_blue_plus`: BLE. Licence checked (v2.3, FlutterBluePlus License 1.5): free for personal, nonprofit and educational use, and the app passes `License.nonprofit` to `connect()`. Any commercial or for-profit use needs a paid licence. The BLE UART characteristics are discovered at connect time (preferring services FFF0, FFE0, 18F0), because ELM327 BLE adapters differ.
 - `geolocator`: GPS.
 - `flutter_foreground_task`: Android foreground service with a persistent notification.
 - `flutter_secure_storage`: ABRP token and API key.
@@ -241,6 +243,7 @@ While the phone is near the car the dongle is always advertising, so the app can
 - The app first reads the adapter's own supply voltage with `ATRV`. This reads the voltage at the OBD port pin and sends **nothing on the CAN bus**.
 - Around 13.0 V or higher means the DC-DC converter is running: the car is on or charging. Below that, the car is off.
 - Car on: start polling and uploading.
+- Implemented in `transport/bus_gate.dart`: every bus command (hex requests and `ATMA`) is refused unless the latest `ATRV` reading is ≥ 13.0 V and at most 90 s old. `AT` setup commands are never gated because they don't reach the bus.
 - Car off: send nothing on the bus. Re-check `ATRV` every 60 s, then disconnect BLE after 10 minutes.
 - If a UDS request gets no answer, stop polling and fall back to the `ATRV` check.
 - Phase 4 checks the vLinker FD+ sleep settings, and includes an overnight 12 V test with the dongle plugged in and the app installed.
@@ -260,6 +263,17 @@ While the phone is near the car the dongle is always advertising, so the app can
 | 3 | Add power, voltage, current, charging flags, gear and temperatures from Phase 1 results. | me → you test |
 | 4 | Hardening: overnight 12 V test, reconnect handling, battery-optimisation guidance, trip CSV export. | both |
 | Stretch | iOS build (CoreBluetooth background mode, Apple developer account). Sharing with other owners (§7). | later |
+
+### 6.1 Phase 1a status
+Done in `app/`:
+- `transport/`: `CommandPolicy` allow-list (AT setup commands, `0x22`, mode `01`; everything else throws), `BusGate` (§5.4), `ElmTransport` (serial command queue, `>` framing, ~85 ms minimum spacing between bus requests), `BleUartLink` (flutter_blue_plus).
+- `elm/`: setup sequence, `ATI`, `ATRV`, module addressing, reply parsing (frames and status words such as `NO DATA`).
+- `uds/`: ISO-TP reassembly (single, first, consecutive and flow-control frames; sequence checks), `0x22` and mode `01` reads with negative-response handling (NRC `0x78` "pending" is skipped).
+- `signals/`: `ocean.json` holds the modules from §1.2 and the four known DIDs from §1.3, all `verified: false` until they're checked against the dash.
+- `ui/`: Connect screen (scan, connect, adapter ID, `ATRV` with car on/off, read the known values with raw hex, adapter log, Imperial/Metric toggle).
+- 96 unit tests (allow-list, gate, framing, ISO-TP, UDS, decoders, units), plus `.github/workflows/build-apk.yml`.
+
+To test on the car: open the Connect screen, scan, and tap the vLinker. Check `ATI` and `ATRV` with the car off (it should show "Car off", and no bus request is possible). Then put the car in Ready, tap "Read known values", and compare VIN, SOC, odometer and 12 V with the dash. Mark each confirmed signal `verified: true` in `ocean.json`.
 
 APK delivery: `.github/workflows/build-apk.yml` runs `flutter test` and `flutter build apk --debug` on every push. The APK is attached to the workflow run as a downloadable artifact, which you sideload on the Pixel ("Install unknown apps" enabled for your browser or Files app). A debug build signs with a debug key, so each new version installs over the previous one without uninstalling.
 

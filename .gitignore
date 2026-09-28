@@ -1,0 +1,16 @@
+# Secrets (CLAUDE.md): ABRP token / API key never go in the repo.
+*.env
+.env*
+secrets.json
+local_config.json
+app/lib/local_config.dart
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Python analysis
+__pycache__/
+.venv/
