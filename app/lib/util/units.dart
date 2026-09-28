@@ -38,3 +38,20 @@ DisplayValue toDisplay(double value, String? metricUnit, UnitSystem system) {
     _ => DisplayValue(value, unit),
   };
 }
+
+/// The display unit for [metricUnit] under [system].
+String displayUnit(String metricUnit, UnitSystem system) =>
+    toDisplay(0, metricUnit, system).unit;
+
+/// Converts a value typed in display units back to metric (for dash readings
+/// entered on the stop checklist).
+double fromDisplay(double value, String metricUnit, UnitSystem system) {
+  if (system == UnitSystem.metric) return value;
+  return switch (metricUnit) {
+    'km' || 'km/h' => value * _kmPerMile,
+    '°C' => (value - 32) * 5 / 9,
+    'kPa' => value * _kPaPerPsi,
+    'Wh/km' => value == 0 ? double.infinity : 1000 / (value * _kmPerMile),
+    _ => value,
+  };
+}

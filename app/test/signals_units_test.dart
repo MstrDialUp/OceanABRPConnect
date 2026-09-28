@@ -1,6 +1,8 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ocean_abrp_connect/elm/elm_response.dart';
+import 'package:ocean_abrp_connect/uds/uds_client.dart';
 import 'package:ocean_abrp_connect/signals/signal_table.dart';
 import 'package:ocean_abrp_connect/util/units.dart';
 
@@ -46,6 +48,25 @@ void main() {
     });
   });
 
+  // Replies captured on the car (OS 2.2.3, 2026-09-28) and checked against the
+  // dash. The VIN reply is left out on purpose.
+  group('captured on the car', () {
+    for (final (id, reply, expected) in [
+      ('odometer', '7C907623409003B2950', 38772.0),
+      ('odometer', '7C907623409003B2964', 38772.2),
+      ('soc', '7E9056220500280', 64.0),
+      ('soc', '7E905622050027F', 63.9),
+      ('aux_voltage', '7CA0562EFF936FC', 14.076),
+      ('aux_voltage', '7CA0562EFF93728', 14.12),
+    ]) {
+      test('$id $reply', () {
+        final s = table.byId(id)!;
+        final r = UdsClient.interpretDidResponse(ElmResponse.parse(reply), s.module, s.did);
+        expect(s.decode((r as ReadValue).data), closeTo(expected, 1e-9));
+      });
+    }
+  });
+
   test('signed decoding', () {
     final def = SignalDef(
       id: 'current',
@@ -73,6 +94,15 @@ void main() {
       expect(toDisplay(250, 'kPa', UnitSystem.imperial).value, closeTo(36.26, 1e-2));
       expect(toDisplay(200, 'Wh/km', UnitSystem.imperial).value, closeTo(3.107, 1e-3));
       expect(toDisplay(80, '%', UnitSystem.imperial).unit, '%');
+    });
+
+    test('fromDisplay inverts toDisplay', () {
+      for (final unit in ['km', 'km/h', '°C', 'kPa', 'Wh/km', '%']) {
+        final shown = toDisplay(123.4, unit, UnitSystem.imperial).value;
+        expect(fromDisplay(shown, unit, UnitSystem.imperial), closeTo(123.4, 1e-9), reason: unit);
+      }
+      expect(displayUnit('km', UnitSystem.imperial), 'mi');
+      expect(displayUnit('km', UnitSystem.metric), 'km');
     });
 
     test('format', () {

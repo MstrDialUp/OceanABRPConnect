@@ -21,7 +21,7 @@
       "did": "F190",
       "type": "ascii",
       "poll_s": 0,
-      "verified": false
+      "verified": true
     },
     {
       "id": "odometer",
@@ -35,7 +35,7 @@
       "unit": "km",
       "abrp": "odometer",
       "poll_s": 60,
-      "verified": false
+      "verified": true
     },
     {
       "id": "soc",
@@ -49,7 +49,7 @@
       "unit": "%",
       "abrp": "soc",
       "poll_s": 1,
-      "verified": false
+      "verified": true
     },
     {
       "id": "aux_voltage",
@@ -62,7 +62,7 @@
       "scale": 0.001,
       "unit": "V",
       "poll_s": 30,
-      "verified": false
+      "verified": true
     }
   ]
 }
