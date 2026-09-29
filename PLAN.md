@@ -2,7 +2,7 @@
 
 A Flutter phone app (Android first) that reads live data from a Fisker Ocean through a vLinker FD+ OBD dongle and sends it to A Better Route Planner (ABRP) using the ABRP "Generic" live-data token.
 
-Status: revision 9. Phase 1d under way: speed, pack current and pack voltage found (§6.4). Still needed: a charging session, dash SOC and tyre-pressure comparisons, and a gear test.
+Status: revision 10. Phase 2 (ABRP link) implemented, awaiting on-car test (§6.5). Phase 1d under way: speed, pack current and pack voltage found (§6.4). Still needed: a charging session, dash SOC and tyre-pressure comparisons, and a gear test.
 
 ---
 
@@ -270,7 +270,7 @@ While the phone is near the car the dongle is always advertising, so the app can
 | 1b | Discovery sweep, recorder, checklist, session export. | me → you test |
 | 1c | Record commute and charging sessions; copy them into the local `data/sessions/`. | you |
 | 1d | Analysis, confirmed signal table. | me |
-| 2 | ABRP MVP: SOC, odometer, GPS, GPS speed, inferred `is_parked`; foreground service; token settings; `ATRV` wake logic. | me → you test |
+| 2 | ABRP MVP: SOC, speed, power, voltage, current, odometer, GPS, inferred `is_parked` / `is_charging`; foreground service; key and token settings; `ATRV` wake logic. | me → you test |
 | 3 | Add power, voltage, current, charging flags, gear and temperatures from Phase 1 results. | me → you test |
 | 4 | Hardening: overnight 12 V test, reconnect handling, battery-optimisation guidance, trip CSV export. | both |
 | Stretch | iOS build (CoreBluetooth background mode, Apple developer account). Sharing with other owners (§7). | later |
@@ -349,6 +349,35 @@ A 32-minute mixed drive (city, highway, hard acceleration, strong regen, reversi
 3. **Tyre pressures against the dash:** once, after a drive of 20+ minutes, read the four dash pressures and "Tyre pressure 1–4" on Connect together.
 4. **A gear test:** stationary in Ready, P → D → N → R → P, about 20 s each, noting the times. If nothing in the current DIDs follows the gear, the VCU needs a wider sweep (§6.3). For ABRP the fallback (speed 0 for 60 s = parked) works in the meantime.
 5. **A recording with the new build**, for faster sampling: the gear test and charging session will already give this.
+
+### 6.5 Phase 2 status (ABRP link)
+Done in `app/`:
+- **`abrp/credentials.dart`**: the user's own API key and token in Android secure storage (`flutter_secure_storage`). They're shown masked (last four characters), never logged, and scrubbed from error text. Android backup is off (`allowBackup="false"`), so they never leave the phone.
+- **`abrp/abrp_client.dart`**: `tlm/send`, `tlm/bulk` and `tlm/get_telemetry`. The key goes in `Authorization: APIKEY …`, and the token in the POST body, so neither is ever in a URL. Results are sorted into ok, network (buffer and retry), HTTP (usually the key) and rejected (ABRP's `errors` text).
+- **`abrp/vehicle_state.dart`**: the latest values by ABRP field, with maximum ages (15 s by default, 3 min for the odometer).
+  - `power` is voltage × current.
+  - The car's speed is used, falling back to GPS speed.
+  - Parked means speed below 1 km/h for 60 s.
+  - Charging means current below −5 A while stationary, and DC means charging above 12 kW (the on-board charger tops out at 11 kW).
+  - A point is only sent when there is fresh car data.
+- **`abrp/uploader.dart`**: every 5 s while driving and 30 s while parked or charging. Network failures buffer up to 720 points (1 h), dropping the oldest first. Buffered points are flushed with `tlm/bulk` in batches of 100 once sending works again. Rejected points aren't retried.
+- **`abrp/live_poller.dart`**: polls only **verified** signals that map to an ABRP field, each at its `poll_s` (SOC, speed, current and voltage at 1 s, odometer at 60 s). It follows §5.4:
+  - nothing goes on the bus unless `ATRV` shows the car on;
+  - `ATRV` is re-read every 30 s while on and every 60 s while off;
+  - 10 unanswered reads close the gate;
+  - after 10 minutes with the car off the link stops and the adapter disconnects, unless a recording is still using it.
+- **ABRP tab**: key and token entry with help text, Start/Stop, car and upload status, the latest values and the inferred state, plus "Check what ABRP received" (`get_telemetry`; needs a key that is allowed to read).
+- The foreground service is reference-counted, so recording and the ABRP link can run at the same time. GPS is one shared platform stream.
+- 155 unit tests, including a mocked ABRP server.
+
+Not yet: auto-start when the adapter is in range (§5.3), the real charging and gear signals (Phase 3), and `batt_temp` and tyre pressures (still unverified).
+
+To test on the car:
+1. Create a personal telemetry API key in ABRP (allow posting and reading).
+2. Enter the key and the Generic token on the ABRP tab.
+3. Connect, then Start sending.
+4. Drive for at least 2 minutes (ABRP has a 60 s processing delay) with ABRP open.
+5. Check that ABRP shows live SOC and speed, and use "Check what ABRP received".
 
 APK delivery: `.github/workflows/build-apk.yml` runs `flutter test` and `flutter build apk --debug` on every push. The APK is attached to the workflow run as a downloadable artifact named `ocean-abrp-connect-<run>-<branch>`, which you sideload on the Pixel ("Install unknown apps" enabled for your browser or Files app). Each build is stamped with the run number (also its Android versionCode, so it always installs as an upgrade), the commit and the branch. The stamp shows at the bottom of Connect and in Settings, and goes into every session header, so it's easy to confirm which build is installed. Don't uninstall to upgrade: that deletes local sweep results and unexported sessions. The DID list from the first sweep is bundled with the app (`assets/signals/sweep_os-2.2.3.json`, regenerated with `tools/analyze/export_did_list.py`), so recording works on a fresh install anyway.
 
