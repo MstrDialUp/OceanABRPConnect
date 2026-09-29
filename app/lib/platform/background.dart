@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
@@ -52,12 +53,12 @@ class Background {
       await FlutterForegroundTask.requestNotificationPermission();
     }
     if (!await Geolocator.isLocationServiceEnabled()) {
-      return 'Location is turned off. Turn it on to record GPS.';
+      return 'Location is turned off. Turn it on so GPS can be recorded and sent.';
     }
     var perm = await Geolocator.checkPermission();
     if (perm == LocationPermission.denied) perm = await Geolocator.requestPermission();
     if (perm == LocationPermission.denied || perm == LocationPermission.deniedForever) {
-      return 'Location permission is needed to record GPS.';
+      return 'Location permission is needed to record and send GPS.';
     }
     if (!await FlutterForegroundTask.isIgnoringBatteryOptimizations) {
       await FlutterForegroundTask.requestIgnoreBatteryOptimization();
@@ -65,11 +66,17 @@ class Background {
     return null;
   }
 
-  static Future<String?> start(String text) async {
+  /// Who currently needs the service (e.g. "record", "abrp"), and what
+  /// each is doing, for the notification text.
+  static final _holders = <String, String>{};
+
+  /// Starts the service (or updates its text) on behalf of [holder].
+  static Future<String?> start(String holder, String text) async {
+    _holders[holder] = text;
     if (!Platform.isAndroid) return null;
     final ServiceRequestResult r;
     if (await FlutterForegroundTask.isRunningService) {
-      r = await FlutterForegroundTask.updateService(notificationText: text);
+      r = await FlutterForegroundTask.updateService(notificationText: _text);
     } else {
       r = await FlutterForegroundTask.startService(
         serviceTypes: [
@@ -77,21 +84,43 @@ class Background {
           ForegroundServiceTypes.location,
         ],
         notificationTitle: 'Ocean ABRP',
-        notificationText: text,
+        notificationText: _text,
         callback: _startCallback,
       );
     }
     return r is ServiceRequestFailure ? '${r.error}' : null;
   }
 
-  static Future<void> stop() async {
-    if (Platform.isAndroid && await FlutterForegroundTask.isRunningService) {
+  /// Releases [holder]'s claim; the service stops when nobody needs it.
+  static Future<void> stop(String holder) async {
+    _holders.remove(holder);
+    if (!Platform.isAndroid || !await FlutterForegroundTask.isRunningService) return;
+    if (_holders.isEmpty) {
       await FlutterForegroundTask.stopService();
+    } else {
+      await FlutterForegroundTask.updateService(notificationText: _text);
     }
   }
 
-  /// GPS fixes about once a second, converted to metric [GpsFix]es.
-  static Stream<GpsFix> gpsFixes() => Geolocator.getPositionStream(
+  static String get _text => _holders.values.join(' · ');
+
+  static StreamController<GpsFix>? _gps;
+  static StreamSubscription<GpsFix>? _gpsSource;
+
+  /// GPS fixes about once a second, converted to metric [GpsFix]es. One
+  /// platform stream is shared by every listener (recording, ABRP link).
+  static Stream<GpsFix> gpsFixes() {
+    final c = _gps ??= StreamController<GpsFix>.broadcast(
+      onListen: () => _gpsSource = _positions().listen(_gps!.add, onError: _gps!.addError),
+      onCancel: () async {
+        await _gpsSource?.cancel();
+        _gpsSource = null;
+      },
+    );
+    return c.stream;
+  }
+
+  static Stream<GpsFix> _positions() => Geolocator.getPositionStream(
         locationSettings: AndroidSettings(
           accuracy: LocationAccuracy.best,
           distanceFilter: 0,

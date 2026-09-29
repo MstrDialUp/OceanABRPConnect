@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 
+import 'abrp/credentials.dart';
 import 'app/app_settings.dart';
 import 'discovery/sweep_state.dart';
 import 'platform/background.dart';
@@ -13,6 +14,8 @@ import 'ui/connect_controller.dart';
 import 'ui/connect_screen.dart';
 import 'ui/discovery_controller.dart';
 import 'ui/discovery_screen.dart';
+import 'ui/link_controller.dart';
+import 'ui/link_screen.dart';
 import 'ui/record_controller.dart';
 import 'ui/record_screen.dart';
 import 'ui/sessions_screen.dart';
@@ -44,11 +47,20 @@ Future<void> main() async {
     sessionsDir: sessionsDir,
   );
 
+  final link = LinkController(
+    connect: connect,
+    table: table,
+    store: SecureCredentialStore(),
+    canDisconnectAdapter: () => !record.recording,
+  );
+  await link.load();
+
   runApp(OceanAbrpApp(
     settings: settings,
     connect: connect,
     discovery: discovery,
     record: record,
+    link: link,
     sessionsDir: sessionsDir,
   ));
 }
@@ -70,6 +82,7 @@ class OceanAbrpApp extends StatefulWidget {
     required this.connect,
     required this.discovery,
     required this.record,
+    required this.link,
     required this.sessionsDir,
   });
 
@@ -77,6 +90,7 @@ class OceanAbrpApp extends StatefulWidget {
   final ConnectController connect;
   final DiscoveryController discovery;
   final RecordController record;
+  final LinkController link;
   final Directory sessionsDir;
 
   @override
@@ -90,6 +104,7 @@ class _OceanAbrpAppState extends State<OceanAbrpApp> {
   Widget build(BuildContext context) {
     final pages = [
       ConnectScreen(controller: widget.connect, settings: widget.settings),
+      LinkScreen(controller: widget.link, settings: widget.settings),
       DiscoveryScreen(controller: widget.discovery),
       RecordScreen(controller: widget.record, settings: widget.settings),
       SessionsScreen(dir: widget.sessionsDir, refresh: widget.record.saved),
@@ -105,6 +120,7 @@ class _OceanAbrpAppState extends State<OceanAbrpApp> {
           onDestinationSelected: (i) => setState(() => _tab = i),
           destinations: const [
             NavigationDestination(icon: Icon(Icons.bluetooth), label: 'Connect'),
+            NavigationDestination(icon: Icon(Icons.cloud_upload_outlined), label: 'ABRP'),
             NavigationDestination(icon: Icon(Icons.radar), label: 'Discover'),
             NavigationDestination(icon: Icon(Icons.fiber_manual_record), label: 'Record'),
             NavigationDestination(icon: Icon(Icons.folder_open), label: 'Sessions'),

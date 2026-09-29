@@ -21,6 +21,8 @@
 
     <application
         android:label="Ocean ABRP"
+        android:allowBackup="false"
+        android:fullBackupContent="false"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

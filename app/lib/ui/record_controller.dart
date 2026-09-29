@@ -85,7 +85,7 @@ class RecordController extends ChangeNotifier {
         gps: Background.gpsFixes(),
       )..onUpdate = _throttledNotify;
       startedAt = start;
-      final fgsError = await Background.start('Recording session');
+      final fgsError = await Background.start('record', 'Recording a session');
       if (fgsError != null) writer.event('fgs_error $fgsError');
       _run = recorder.run().catchError((Object e) {
         writer.event('recorder_error $e');
@@ -110,7 +110,7 @@ class RecordController extends ChangeNotifier {
     await _run;
     _run = null;
     _recorder = null;
-    await Background.stop();
+    await Background.stop('record');
     connect.refresh();
     notifyListeners();
   }
