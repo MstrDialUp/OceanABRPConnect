@@ -1,6 +1,6 @@
 # Ocean Discovery
 
-The tool used to find the Fisker Ocean's data identifiers (PLAN.md §4). It shares `packages/ocean_obd` with Ocean ABRP Connect and installs next to it (app ID `com.oceanabrp.ocean_discovery`).
+The tool used to find the Fisker Ocean's data identifiers (PLAN.md §4). It shares `packages/ocean_obd` with Strait and installs next to it (app ID `com.oceanabrp.ocean_discovery`).
 
 - **Connect**: adapter, `ATRV`, and the known signals next to the dash.
 - **Discover**: a resumable `0x22` sweep over DID ranges on every module, OBD mode `01` probes and a passive listen. Run only while parked in Ready.

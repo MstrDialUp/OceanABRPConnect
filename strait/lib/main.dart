@@ -13,10 +13,10 @@ import 'abrp/credentials.dart';
 import 'ui/link_controller.dart';
 import 'ui/link_screen.dart';
 
-/// Ocean ABRP Connect: sends live data from the car to ABRP (PLAN.md §5).
+/// Strait: sends live data from the car to ABRP (PLAN.md §5).
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  Background.notificationTitle = 'Ocean ABRP';
+  Background.notificationTitle = 'Strait';
   Background.initCommunication();
   Background.init();
 
@@ -29,11 +29,11 @@ Future<void> main() async {
   final link = LinkController(connect: connect, table: table, store: SecureCredentialStore());
   await link.load();
 
-  runApp(OceanAbrpApp(settings: settings, connect: connect, link: link));
+  runApp(StraitApp(settings: settings, connect: connect, link: link));
 }
 
-class OceanAbrpApp extends StatefulWidget {
-  const OceanAbrpApp({
+class StraitApp extends StatefulWidget {
+  const StraitApp({
     super.key,
     required this.settings,
     required this.connect,
@@ -45,10 +45,10 @@ class OceanAbrpApp extends StatefulWidget {
   final LinkController link;
 
   @override
-  State<OceanAbrpApp> createState() => _OceanAbrpAppState();
+  State<StraitApp> createState() => _StraitAppState();
 }
 
-class _OceanAbrpAppState extends State<OceanAbrpApp> {
+class _StraitAppState extends State<StraitApp> {
   int _tab = 0;
 
   @override
@@ -58,7 +58,7 @@ class _OceanAbrpAppState extends State<OceanAbrpApp> {
       ConnectScreen(controller: widget.connect, settings: widget.settings),
     ];
     return MaterialApp(
-      title: 'Ocean ABRP Connect',
+      title: 'Strait',
       theme: ThemeData(colorSchemeSeed: Colors.teal),
       darkTheme: ThemeData(colorSchemeSeed: Colors.teal, brightness: Brightness.dark),
       home: Scaffold(
