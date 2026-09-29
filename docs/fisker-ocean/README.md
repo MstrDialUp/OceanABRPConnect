@@ -1,6 +1,6 @@
 # Fisker Ocean diagnostic bus: what we know
 
-Everything learned while building OceanABRPConnect about talking to a Fisker Ocean through its OBD port: the adapter, the bus, the modules, the data identifiers (DIDs) and how to decode them. It's written for anyone building another Ocean app, and it records the evidence behind each claim.
+Everything learned while building Strait about talking to a Fisker Ocean through its OBD port: the adapter, the bus, the modules, the data identifiers (DIDs) and how to decode them. It's written for anyone building another Ocean app, and it records the evidence behind each claim.
 
 - **Car:** one 2023 Fisker Ocean, Ocean OS **2.2.3**. An OTA update can move or change DIDs, so re-check after an update.
 - **Adapter:** vLinker FD+ over Bluetooth LE, reporting `ELM327 v2.2`.

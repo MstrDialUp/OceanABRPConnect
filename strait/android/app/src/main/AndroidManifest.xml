@@ -20,7 +20,7 @@
     <uses-feature android:name="android.hardware.bluetooth_le" android:required="true" />
 
     <application
-        android:label="Ocean ABRP"
+        android:label="Strait"
         android:allowBackup="false"
         android:fullBackupContent="false"
         android:name="${applicationName}"

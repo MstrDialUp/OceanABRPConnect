@@ -30,8 +30,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - dir: app
-            name: ocean-abrp-connect
+          - dir: strait
+            name: strait
           - dir: discovery
             name: ocean-discovery
     env:

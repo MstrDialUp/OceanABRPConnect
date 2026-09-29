@@ -4,18 +4,18 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:ocean_abrp_connect/abrp/abrp_client.dart';
-import 'package:ocean_abrp_connect/abrp/credentials.dart';
-import 'package:ocean_abrp_connect/abrp/live_poller.dart';
-import 'package:ocean_abrp_connect/abrp/telemetry.dart';
-import 'package:ocean_abrp_connect/abrp/uploader.dart';
-import 'package:ocean_abrp_connect/abrp/vehicle_state.dart';
+import 'package:strait/abrp/abrp_client.dart';
+import 'package:strait/abrp/credentials.dart';
+import 'package:strait/abrp/live_poller.dart';
+import 'package:strait/abrp/telemetry.dart';
+import 'package:strait/abrp/uploader.dart';
+import 'package:strait/abrp/vehicle_state.dart';
 import 'package:ocean_obd/elm/elm_client.dart';
 import 'package:ocean_obd/platform/gps_fix.dart';
 import 'package:ocean_obd/signals/signal_table.dart';
 import 'package:ocean_obd/transport/elm_transport.dart';
 import 'package:ocean_obd/uds/uds_client.dart';
-import 'package:ocean_abrp_connect/ui/link_controller.dart';
+import 'package:strait/ui/link_controller.dart';
 
 import 'package:ocean_obd/testing/fake_elm.dart';
 

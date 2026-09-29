@@ -1,6 +1,6 @@
 # ocean_obd
 
-Shared Flutter package for talking to a Fisker Ocean's diagnostic bus through an ELM327 Bluetooth LE adapter (tested with a vLinker FD+). Both apps in this repo use it: `app/` (Ocean ABRP Connect) and `discovery/` (Ocean Discovery).
+Shared Flutter package for talking to a Fisker Ocean's diagnostic bus through an ELM327 Bluetooth LE adapter (tested with a vLinker FD+). Both apps in this repo use it: `strait/` (Strait) and `discovery/` (Ocean Discovery).
 
 | Directory | What |
 |---|---|

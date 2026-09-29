@@ -1,6 +1,9 @@
-# OceanABRPConnect
+# Strait
 
-Flutter apps (Android first) that read live data from a Fisker Ocean through a vLinker FD+ BLE OBD dongle: **Ocean ABRP Connect** sends it to ABRP's Telemetry API, and **Ocean Discovery** is the tool used to find the data. `PLAN.md` is the source of truth for scope, phases and decisions; read it before starting work and update it when a decision changes.
+Flutter apps (Android first) that read live data from a Fisker Ocean through a vLinker FD+ BLE OBD dongle: **Strait** sends it to ABRP's Telemetry API, and **Ocean Discovery** is the tool used to find the data. `PLAN.md` is the source of truth for scope, phases and decisions; read it before starting work and update it when a decision changes.
+
+## Naming
+The app is **Strait**. Keep "Ocean", "Fisker" and "ABRP" out of the app's name, app ID and store-facing identity, since those names belong to others. Using them to describe what the app works with (for example "sends data to ABRP", "for the Fisker Ocean") is fine. Ocean Discovery is a personal tool and keeps its name.
 
 ## Hard rules
 - **Read-only on the vehicle.** The transport layer may only send ELM327 `AT` setup commands, UDS `0x22` (ReadDataByIdentifier) and OBD mode `01` requests. Never add DTC clears (`0x14`), writes (`0x2E`), routines (`0x31`), resets (`0x11`) or session changes (`0x10`). The allow-list is enforced in code and covered by tests.
@@ -12,7 +15,7 @@ Flutter apps (Android first) that read live data from a Fisker Ocean through a v
 ## Layout
 - `packages/ocean_obd/`: shared package: `transport/` (BLE, allow-list, ATRV gate), `elm/`, `uds/`, `signals/`, shared `ui/` (connect, settings), `platform/` (foreground service, GPS)
 - `packages/ocean_obd/assets/signals/ocean.json`: signal table (module, DID, decoding, ABRP field, poll rate, evidence); `sweep_os-*.json`: DIDs that answered in a sweep, without values
-- `app/`: Ocean ABRP Connect (`abrp/`, link UI). App ID `com.oceanabrp.ocean_abrp_connect`
+- `strait/`: Strait (`abrp/`, link UI). App ID `com.mstrdialup.strait`
 - `discovery/`: Ocean Discovery (`discovery/` sweep, `recorder/`, sessions UI). App ID `com.oceanabrp.ocean_discovery`
 - `docs/fisker-ocean/`: what we know about the Ocean's bus: `README.md` (findings with evidence) and `did-catalog.md` (generated)
 - `tools/analyze/`: Python analysis of sessions, the catalog and bundled-list generators
@@ -22,8 +25,8 @@ Flutter apps (Android first) that read live data from a Fisker Ocean through a v
 
 ## Commands
 - `cd packages/ocean_obd && flutter test`: package tests (allow-list, ATRV gate, ELM, ISO-TP, UDS, decoders, units)
-- `cd app && flutter test` / `cd discovery && flutter test`: app tests
-- `cd app && flutter run` (or `discovery`): run on the connected Pixel
+- `cd strait && flutter test` / `cd discovery && flutter test`: app tests
+- `cd strait && flutter run` (or `discovery`): run on the connected Pixel
 - CI: `.github/workflows/build-apk.yml` tests the package, then analyzes, tests and builds a debug APK of each app on every push
 
 ## Target device
