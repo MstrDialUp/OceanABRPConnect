@@ -2,7 +2,7 @@
 
 A Flutter phone app (Android first) that reads live data from a Fisker Ocean through a vLinker FD+ OBD dongle and sends it to A Better Route Planner (ABRP) using the ABRP "Generic" live-data token.
 
-Status: revision 8. Phase 1d under way: speed, pack current and pack voltage found (§6.4). Still needed: a charging session, dash SOC and tyre-pressure comparisons, and a gear test.
+Status: revision 9. Phase 1d under way: speed, pack current and pack voltage found (§6.4). Still needed: a charging session, dash SOC and tyre-pressure comparisons, and a gear test.
 
 ---
 
@@ -17,6 +17,7 @@ Status: revision 8. Phase 1d under way: speed, pack current and pack voltage fou
 | Car software | Ocean OS 2.2.3. Every recording stores the OS version, because an OTA update can move or change data identifiers. |
 | Dongle | vLinker FD+ stays plugged in permanently. The app must never keep the car awake (see §5.4). |
 | Discovery | You will record sessions on your daily commute and while charging. The app gets a Start/Stop Recording button and a checklist on stop (see §4). |
+| ABRP credentials | The ABRP API key and user token are entered by each user in the app and stored only in the app (Android secure storage). They're never bundled in the build, committed, or kept in local config. Every user gets both from ABRP themselves: the API key under ABRP's self-service telemetry API keys, the token from the car's Generic connection. |
 | Recorded data | Sessions and sweep results stay out of git. The repo is public, and these files contain the VIN and GPS tracks. You copy them into the git-ignored `data/sessions/` and `data/discovery/` locally for analysis. |
 | Audience | Personal use first. Sharing with other Ocean owners later is possible, so nothing should block that path (see §7). |
 | Development | Phase 1a onward is developed on your local machine (Flutter + Android SDK installed), with the Pixel connected over USB or wireless ADB. GitHub stays the source of truth; GitHub Actions still builds APKs as CI. See §9. |
@@ -91,7 +92,7 @@ Reference copies are in `docs/abrp/`: the Postman collection (`iternio-telemetry
 ### 2.1 Endpoint
 `https://api.iternio.com/1/tlm/send`
 
-- `api_key`: identifies the app. Keys are free and requested from contact@iternio.com (draft email in Appendix A). The key goes in a query parameter or in the header `Authorization: APIKEY <key>`.
+- `api_key`: identifies the sender. Telemetry keys are now self-service: ABRP → API keys → telemetry ("Personal telemetry keys for posting and reading your ABRP live data"). No email to Iternio is needed. Allow posting and, if offered, reading (for the "Test link" check). The key goes in the header `Authorization: APIKEY <key>` (preferred over the query parameter, so it doesn't end up in URLs or logs).
 - `token`: identifies your car in ABRP. Where to find it: ABRP → Settings → your Ocean → Modify connections → Generic → Link.
 - `tlm`: a JSON object with the telemetry fields, including an optional `car_model` typecode (e.g. `chevy:bolt:17:60:other`). The Ocean's typecode comes from `get_carmodels_list`.
 - The documented example sends `token` and `tlm` as URL query parameters with POST.
@@ -237,7 +238,7 @@ Python scripts I run on the sessions in your local `data/sessions/`:
 ## 5. ABRP link app (Phases 2–4)
 
 ### 5.1 Behaviour
-- Setup: paste the ABRP token once. The API key is bundled with the build for personal use; §7 covers sharing.
+- Setup: the user pastes their own API key and token into the app once (§0, ABRP credentials).
 - While linked: poll the confirmed signals at 1 Hz (SOC, speed, power) and slower for odometer and temperatures.
 - Upload every 5 s while driving and every 30 s while parked or charging.
 - On network loss: buffer points (capped at about 1 hour at 5 s spacing) and flush them with `tlm/bulk` on reconnect. The buffered points still help ABRP's consumption model for your car.
@@ -264,7 +265,7 @@ While the phone is near the car the dongle is always advertising, so the app can
 
 | Phase | What | Who |
 |---|---|---|
-| 0 | Email Iternio (Appendix A). Get the ABRP Generic token. Set up local development (§9.2). | you |
+| 0 | Create a personal ABRP telemetry API key. Get the ABRP Generic token. Set up local development (§9.2). | you |
 | 1a | Flutter scaffold, BLE transport, ELM/UDS layers with unit tests, Connect screen verifying the known values. | me → you test |
 | 1b | Discovery sweep, recorder, checklist, session export. | me → you test |
 | 1c | Record commute and charging sessions; copy them into the local `data/sessions/`. | you |
@@ -349,13 +350,13 @@ A 32-minute mixed drive (city, highway, hard acceleration, strong regen, reversi
 4. **A gear test:** stationary in Ready, P → D → N → R → P, about 20 s each, noting the times. If nothing in the current DIDs follows the gear, the VCU needs a wider sweep (§6.3). For ABRP the fallback (speed 0 for 60 s = parked) works in the meantime.
 5. **A recording with the new build**, for faster sampling: the gear test and charging session will already give this.
 
-APK delivery: `.github/workflows/build-apk.yml` runs `flutter test` and `flutter build apk --debug` on every push. The APK is attached to the workflow run as a downloadable artifact, which you sideload on the Pixel ("Install unknown apps" enabled for your browser or Files app). A debug build signs with a debug key, so each new version installs over the previous one without uninstalling.
+APK delivery: `.github/workflows/build-apk.yml` runs `flutter test` and `flutter build apk --debug` on every push. The APK is attached to the workflow run as a downloadable artifact named `ocean-abrp-connect-<run>-<branch>`, which you sideload on the Pixel ("Install unknown apps" enabled for your browser or Files app). Each build is stamped with the run number (also its Android versionCode, so it always installs as an upgrade), the commit and the branch. The stamp shows at the bottom of Connect and in Settings, and goes into every session header, so it's easy to confirm which build is installed. Don't uninstall to upgrade: that deletes local sweep results and unexported sessions. The DID list from the first sweep is bundled with the app (`assets/signals/sweep_os-2.2.3.json`, regenerated with `tools/analyze/export_did_list.py`), so recording works on a fresh install anyway.
 
 ---
 
 ## 7. If the app is shared later
 - Each user supplies their own ABRP Generic token; the app is unchanged for that.
-- Ask Iternio whether one API key can ship inside a distributed app, or whether OAuth2 is required (included in Appendix A).
+- Each user supplies their own API key as well as their token (§0), so nothing needs to ship inside the app. Iternio's OAuth2 flow could later replace pasting the token, but it needs a client ID from Iternio.
 - Other Ocean owners may be on different OS versions, so the signal table needs per-OS-version entries.
 - Check the licence terms of each dependency, particularly `flutter_blue_plus`.
 
@@ -384,7 +385,9 @@ Anything that doesn't need hardware, such as analysing recorded sessions (`tools
 
 ---
 
-## Appendix A — Draft email to Iternio
+## Appendix A — Draft email to Iternio (not needed for personal keys)
+
+Kept for reference: telemetry API keys are now self-service in ABRP, and each user enters their own (§0). This is only relevant if the app ever needs Iternio's OAuth2 client setup.
 
 > **To:** contact@iternio.com
 > **Subject:** Telemetry API key request — Fisker Ocean OBD live data app

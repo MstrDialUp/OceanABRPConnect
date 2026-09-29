@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../app/app_settings.dart';
+import '../app/build_info.dart';
 import '../util/units.dart';
 import 'settings_screen.dart';
 import 'connect_controller.dart';
@@ -60,6 +61,11 @@ class _ConnectScreenState extends State<ConnectScreen> {
                   TextButton(onPressed: c.disconnect, child: const Text('Stop reconnecting')),
                 ],
             },
+            Padding(
+              padding: const EdgeInsets.only(top: 16),
+              child: Text(BuildInfo.label,
+                  textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodySmall),
+            ),
             if (c.trace.isNotEmpty) ...[
               const Divider(),
               SwitchListTile(

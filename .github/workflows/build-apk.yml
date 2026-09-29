@@ -27,10 +27,18 @@ jobs:
       - run: flutter pub get
       - run: flutter analyze
       - run: flutter test
-      - run: flutter build apk --debug
+      # Stamp the build so the app can show exactly what is installed, and
+      # give every run a higher versionCode so Android always upgrades.
+      - run: >
+          flutter build apk --debug
+          --build-number=${{ github.run_number }}
+          --build-name=0.1.${{ github.run_number }}
+          --dart-define=GIT_SHA=${{ github.sha }}
+          --dart-define=GIT_REF=${{ github.head_ref || github.ref_name }}
+          --dart-define=BUILD_NUMBER=${{ github.run_number }}
 
       - uses: actions/upload-artifact@v4
         with:
-          name: ocean-abrp-connect-debug-${{ github.sha }}
+          name: ocean-abrp-connect-${{ github.run_number }}-${{ github.head_ref || github.ref_name }}
           path: app/build/app/outputs/flutter-apk/app-debug.apk
           retention-days: 30

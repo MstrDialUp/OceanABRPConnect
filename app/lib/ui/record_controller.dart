@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 
 import '../app/app_settings.dart';
+import '../app/build_info.dart';
 import '../platform/background.dart';
 import '../recorder/checklist.dart';
 import '../recorder/poll_schedule.dart';
@@ -11,8 +12,6 @@ import '../recorder/recorder.dart';
 import '../recorder/session_file.dart';
 import 'connect_controller.dart';
 import 'discovery_controller.dart';
-
-const appVersion = '0.1.0';
 
 class RecordController extends ChangeNotifier {
   RecordController({
@@ -68,7 +67,8 @@ class RecordController extends ChangeNotifier {
       final writer = _writer = await SessionWriter.create(
         sessionsDir,
         SessionHeader(
-          appVersion: appVersion,
+          appVersion: BuildInfo.label,
+          gitSha: BuildInfo.gitSha,
           carOs: settings.carOs,
           start: start,
           adapter: connect.adapterId,

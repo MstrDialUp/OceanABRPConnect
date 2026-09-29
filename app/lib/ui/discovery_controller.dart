@@ -9,11 +9,20 @@ import '../util/json_store.dart';
 import 'connect_controller.dart';
 
 class DiscoveryController extends ChangeNotifier {
-  DiscoveryController({required this.connect, required this.table, required this.store});
+  DiscoveryController({
+    required this.connect,
+    required this.table,
+    required this.store,
+    this.bundled = const [],
+  });
 
   final ConnectController connect;
   final SignalTable table;
   final JsonFileStore store;
+
+  /// DIDs from the sweep bundled with the app, so recording works on a fresh
+  /// install without running Discover again.
+  final List<DidHit> bundled;
 
   final String rangesKey = DiscoverySweep.rangesKeyFor(defaultSweepRanges);
   late SweepState state = SweepState(rangesKey: rangesKey);
@@ -88,22 +97,25 @@ class DiscoveryController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// What to record: DIDs that answered positively in the sweep plus the
-  /// known signals. Identification DIDs (and known signals that aren't
+  /// What to record: DIDs that answered positively in the local sweep or
+  /// the bundled list, plus the known signals. Identification DIDs (and known signals that aren't
   /// polled, like the VIN) go in [once]; the rest are polled.
   ({List<PollTarget> poll, List<PollTarget> once}) recordTargets() =>
-      splitRecordTargets(table, state);
+      splitRecordTargets(table, state, bundled: bundled);
 }
 
 /// See [DiscoveryController.recordTargets].
 ({List<PollTarget> poll, List<PollTarget> once}) splitRecordTargets(
-    SignalTable table, SweepState state) {
+  SignalTable table,
+  SweepState state, {
+  List<DidHit> bundled = const [],
+}) {
   final poll = <PollTarget>{};
   final once = <PollTarget>{};
   for (final s in table.signals) {
     (s.pollSeconds > 0 ? poll : once).add(PollTarget(s.module, s.did));
   }
-  for (final h in state.positiveHits) {
+  for (final h in [...state.positiveHits, ...bundled]) {
     final m = table.modules[h.module];
     if (m == null) continue;
     final t = PollTarget(m, h.did);

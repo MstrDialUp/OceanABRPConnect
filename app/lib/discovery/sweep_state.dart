@@ -126,3 +126,12 @@ class SweepState {
         monitor: j['monitor'] as Map<String, dynamic>?,
       );
 }
+
+/// Parses a DID list bundled with the app (`assets/signals/sweep_os-*.json`,
+/// written by `tools/analyze/export_did_list.py`) into positive hits.
+List<DidHit> parseBundledDidList(Map<String, dynamic> json) => [
+      for (final MapEntry(key: module, value: dids)
+          in (json['dids'] as Map<String, dynamic>? ?? {}).entries)
+        for (final did in dids as List<dynamic>)
+          DidHit(module: module, did: int.parse(did as String, radix: 16)),
+    ];
