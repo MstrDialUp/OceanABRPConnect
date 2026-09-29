@@ -1,17 +1,44 @@
 {
   "car": "Fisker Ocean",
   "os_version": "2.2.3",
-  "notes": "Module IDs and DIDs from PLAN.md §1.2/§1.3. 'verified' flips to true once a value is checked against the dash on the car. Multi-byte values are big-endian; 'offset' counts from the first data byte after the DID echo.",
+  "notes": "Module IDs and DIDs from PLAN.md §1.2/§1.3/§6.4. 'verified' is true once a value is confirmed on the car (against the dash, or by the check in 'evidence'). Multi-byte values are big-endian; 'offset' counts from the first data byte after the DID echo; value = raw * scale + add.",
   "modules": {
-    "BMS":   { "tx": "7E1", "rx": "7E9" },
-    "VCU":   { "tx": "7C2", "rx": "7CA" },
-    "BCM":   { "tx": "7C1", "rx": "7C9" },
-    "MCU_F": { "tx": "786", "rx": "78E" },
-    "MCU_R": { "tx": "7F2", "rx": "7FA" },
-    "OHC":   { "tx": "783", "rx": "78B" },
-    "PDU":   { "tx": "7F3", "rx": "7FB" },
-    "ESP":   { "tx": "7D0", "rx": "7D8" },
-    "ECC":   { "tx": "7F0", "rx": "7F8" }
+    "BMS": {
+      "tx": "7E1",
+      "rx": "7E9"
+    },
+    "VCU": {
+      "tx": "7C2",
+      "rx": "7CA"
+    },
+    "BCM": {
+      "tx": "7C1",
+      "rx": "7C9"
+    },
+    "MCU_F": {
+      "tx": "786",
+      "rx": "78E"
+    },
+    "MCU_R": {
+      "tx": "7F2",
+      "rx": "7FA"
+    },
+    "OHC": {
+      "tx": "783",
+      "rx": "78B"
+    },
+    "PDU": {
+      "tx": "7F3",
+      "rx": "7FB"
+    },
+    "ESP": {
+      "tx": "7D0",
+      "rx": "7D8"
+    },
+    "ECC": {
+      "tx": "7F0",
+      "rx": "7F8"
+    }
   },
   "signals": [
     {
@@ -21,7 +48,8 @@
       "did": "F190",
       "type": "ascii",
       "poll_s": 0,
-      "verified": true
+      "verified": true,
+      "evidence": "Matches the car (2026-09-28)."
     },
     {
       "id": "odometer",
@@ -35,7 +63,8 @@
       "unit": "km",
       "abrp": "odometer",
       "poll_s": 60,
-      "verified": true
+      "verified": true,
+      "evidence": "Matches the dash; tracks GPS distance within 3 % (2026-09-28/29)."
     },
     {
       "id": "soc",
@@ -49,7 +78,8 @@
       "unit": "%",
       "abrp": "soc",
       "poll_s": 1,
-      "verified": true
+      "verified": true,
+      "evidence": "Matched the dash on 2026-09-28 (64 %); read 75.1 % against a dash 74 % on 2026-09-29. See soc_2047..2049."
     },
     {
       "id": "aux_voltage",
@@ -62,7 +92,181 @@
       "scale": 0.001,
       "unit": "V",
       "poll_s": 30,
-      "verified": true
+      "verified": true,
+      "evidence": "≈14 V with the car on, as expected with the DC-DC running."
+    },
+    {
+      "id": "speed",
+      "name": "Vehicle speed",
+      "module": "VCU",
+      "did": "EFF7",
+      "type": "uint",
+      "offset": 0,
+      "length": 2,
+      "scale": 0.1,
+      "unit": "km/h",
+      "abrp": "speed",
+      "poll_s": 1,
+      "verified": true,
+      "evidence": "r = 0.999 against GPS speed over a 32 min drive; reads ≈3 % below GPS, like the odometer (2026-09-29). Same value on every module."
+    },
+    {
+      "id": "pack_current",
+      "name": "HV pack current",
+      "module": "BMS",
+      "did": "2004",
+      "type": "uint",
+      "offset": 2,
+      "length": 2,
+      "scale": 0.1,
+      "add": -2000,
+      "unit": "A",
+      "abrp": "current",
+      "poll_s": 1,
+      "verified": true,
+      "evidence": "Positive while discharging. Integrated over a drive: 5.65 kWh vs 5.54 kWh from the SOC drop at 113 kWh; r = 0.89 against a tractive-power estimate (2026-09-29)."
+    },
+    {
+      "id": "pack_voltage",
+      "name": "HV pack voltage",
+      "module": "BMS",
+      "did": "2107",
+      "type": "uint",
+      "offset": 0,
+      "length": 2,
+      "scale": 0.1,
+      "unit": "V",
+      "abrp": "voltage",
+      "poll_s": 1,
+      "verified": true,
+      "evidence": "391–413 V, sags under load; ≈102 × cell voltage (BMS 2136–2138). 2109 and 2117 read the same within 1 V."
+    },
+    {
+      "id": "cell_voltage_2136",
+      "name": "Cell voltage (2136)",
+      "module": "BMS",
+      "did": "2136",
+      "type": "uint",
+      "offset": 0,
+      "length": 2,
+      "scale": 0.001,
+      "unit": "V",
+      "poll_s": 10,
+      "verified": false,
+      "evidence": "3.84–4.04 V; 2136–2138 look like min/max/average."
+    },
+    {
+      "id": "batt_temp",
+      "name": "Battery temperature",
+      "module": "BMS",
+      "did": "2089",
+      "type": "uint",
+      "offset": 0,
+      "length": 2,
+      "scale": 0.01,
+      "unit": "°C",
+      "abrp": "batt_temp",
+      "poll_s": 30,
+      "verified": false,
+      "evidence": "22.1–22.3 over a drive; 2089–2094 agree within 0.2. Scale is a guess."
+    },
+    {
+      "id": "soc_2047",
+      "name": "SOC candidate (2047)",
+      "module": "BMS",
+      "did": "2047",
+      "type": "uint",
+      "offset": 0,
+      "length": 2,
+      "scale": 0.1,
+      "unit": "%",
+      "poll_s": 10,
+      "verified": false,
+      "evidence": "1.2–1.6 below 2050; 73.9 when the dash showed 74 (2026-09-29)."
+    },
+    {
+      "id": "soc_2048",
+      "name": "SOC candidate (2048)",
+      "module": "BMS",
+      "did": "2048",
+      "type": "uint",
+      "offset": 0,
+      "length": 2,
+      "scale": 0.1,
+      "unit": "%",
+      "poll_s": 10,
+      "verified": false,
+      "evidence": "Lowest of 2047–2049; possibly minimum cell SOC."
+    },
+    {
+      "id": "soc_2049",
+      "name": "SOC candidate (2049)",
+      "module": "BMS",
+      "did": "2049",
+      "type": "uint",
+      "offset": 0,
+      "length": 2,
+      "scale": 0.1,
+      "unit": "%",
+      "poll_s": 10,
+      "verified": false,
+      "evidence": "Between 2047 and 2048; possibly average cell SOC."
+    },
+    {
+      "id": "tyre_1",
+      "name": "Tyre pressure 1",
+      "module": "BCM",
+      "did": "3427",
+      "type": "uint",
+      "offset": 0,
+      "length": 1,
+      "scale": 1.379,
+      "unit": "kPa",
+      "poll_s": 60,
+      "verified": false,
+      "evidence": "Zero until the TPMS sensors wake (≈20 min of driving); then 0xC1–0xC3. Scale (0.2 psi) and wheel order are guesses: compare with the dash."
+    },
+    {
+      "id": "tyre_2",
+      "name": "Tyre pressure 2",
+      "module": "BCM",
+      "did": "3427",
+      "type": "uint",
+      "offset": 1,
+      "length": 1,
+      "scale": 1.379,
+      "unit": "kPa",
+      "poll_s": 60,
+      "verified": false,
+      "evidence": "Zero until the TPMS sensors wake (≈20 min of driving); then 0xC1–0xC3. Scale (0.2 psi) and wheel order are guesses: compare with the dash."
+    },
+    {
+      "id": "tyre_3",
+      "name": "Tyre pressure 3",
+      "module": "BCM",
+      "did": "3427",
+      "type": "uint",
+      "offset": 2,
+      "length": 1,
+      "scale": 1.379,
+      "unit": "kPa",
+      "poll_s": 60,
+      "verified": false,
+      "evidence": "Zero until the TPMS sensors wake (≈20 min of driving); then 0xC1–0xC3. Scale (0.2 psi) and wheel order are guesses: compare with the dash."
+    },
+    {
+      "id": "tyre_4",
+      "name": "Tyre pressure 4",
+      "module": "BCM",
+      "did": "3427",
+      "type": "uint",
+      "offset": 3,
+      "length": 1,
+      "scale": 1.379,
+      "unit": "kPa",
+      "poll_s": 60,
+      "verified": false,
+      "evidence": "Zero until the TPMS sensors wake (≈20 min of driving); then 0xC1–0xC3. Scale (0.2 psi) and wheel order are guesses: compare with the dash."
     }
   ]
 }

@@ -67,6 +67,30 @@ void main() {
     }
   });
 
+  // Data bytes captured on the 2026-09-29 drive.
+  group('signals found in the first drive', () {
+    for (final (id, hex, expected) in [
+      ('speed', '028F', 65.5),
+      ('speed', '0000', 0.0),
+      ('pack_current', '00004E3A', 2.6),
+      ('pack_current', '000049A5', -114.7),
+      ('pack_voltage', '1010', 411.2),
+      ('batt_temp', '08A7', 22.15),
+      ('soc_2047', '0313', 78.7),
+      ('tyre_1', 'C1C1C3C2', 266.147),
+      ('tyre_4', 'C1C1C3C2', 267.526),
+    ]) {
+      test('$id $hex', () {
+        expect(table.byId(id)!.decode(hexToBytes(hex)), closeTo(expected, 1e-6));
+      });
+    }
+
+    test('ABRP fields are unique', () {
+      final fields = [for (final s in table.signals) if (s.abrpField != null) s.abrpField];
+      expect(fields.toSet().length, fields.length);
+    });
+  });
+
   test('signed decoding', () {
     final def = SignalDef(
       id: 'current',

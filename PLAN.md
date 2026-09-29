@@ -2,7 +2,7 @@
 
 A Flutter phone app (Android first) that reads live data from a Fisker Ocean through a vLinker FD+ OBD dongle and sends it to A Better Route Planner (ABRP) using the ABRP "Generic" live-data token.
 
-Status: revision 7. Phases 1a and 1b done and tested on the car; the first sweep and sessions have been reviewed (§6.3). Next: a recording with the sweep results, then Phase 1d.
+Status: revision 8. Phase 1d under way: speed, pack current and pack voltage found (§6.4). Still needed: a charging session, dash SOC and tyre-pressure comparisons, and a gear test.
 
 ---
 
@@ -59,10 +59,13 @@ The functional (broadcast) request ID is 7DF.
 | Odometer | BCM | 3409 | uint32 ÷ 100 = km |
 | HV state of charge | BMS | 2050 | uint16 ÷ 10 = % |
 | 12 V battery | VCU | EFF9 | uint16 ÷ 1000 = V |
+| Vehicle speed | VCU (any module) | EFF7 | uint16 ÷ 10 = km/h |
+| HV pack current | BMS | 2004 | bytes 2–3 uint16 ÷ 10 − 2000 = A, + = discharge |
+| HV pack voltage | BMS | 2107 | uint16 ÷ 10 = V |
 
-All four were verified against the dash on 2026-09-28 (Ocean OS 2.2.3, vLinker FD+ reporting `ELM327 v2.2`), and each is marked `verified: true` in `ocean.json`.
+The first four were verified against the dash on 2026-09-28 (Ocean OS 2.2.3, vLinker FD+ reporting `ELM327 v2.2`). Speed, current and voltage came from the 2026-09-29 drive (§6.4). Unverified candidates (SOC variants, battery temperature, cell voltage, tyre pressures) are in `ocean.json` with `verified: false` and an `evidence` note.
 
-Not known yet: speed, pack voltage, pack current (and so power), charging state, gear, and temperatures. The OBDb community signal set for the Ocean is empty. Phase 1 exists to find these values.
+Not known yet: charging state, gear, outside and cabin temperature, HVAC power, SOH. The OBDb community signal set for the Ocean is empty.
 
 ### 1.4 Read-only rule
 The app only sends ELM327 `AT` setup commands and UDS `0x22` ReadDataByIdentifier requests (plus standard OBD mode `01` probes on 7DF). A hard allow-list in the transport layer rejects everything else. In particular, the app never sends DTC clears (`0x14`), writes (`0x2E`), routines (`0x31`), resets (`0x11`) or session changes (`0x10`).
@@ -104,13 +107,16 @@ Reference copies are in `docs/abrp/`: the Postman collection (`iternio-telemetry
 | Field | Source | Status |
 |---|---|---|
 | `utc`, `lat`, `lon`, `heading`, `elevation` | phone GPS | available |
-| `speed` | car if found, else GPS | GPS available |
-| `soc` | BMS 2050 | verified |
+| `speed` | VCU EFF7 | verified; reads ≈3 % below GPS, like the odometer |
+| `soc` | BMS 2050 | verified once; up to 1.1 points above the dash since, so 2047 is also a candidate (§6.4) |
 | `odometer` | BCM 3409 | verified |
-| `power`, `voltage`, `current` | BMS (expected) | Phase 1 |
-| `is_charging`, `is_dcfc` | BMS / OHC / PDU | Phase 1; fallback: current < 0 while stationary |
-| `is_parked` | VCU gear | Phase 1; fallback: GPS speed 0 for 60 s |
-| `batt_temp`, `ext_temp`, `soh`, `est_battery_range`, `tire_pressure_*` | various | Phase 1, nice to have |
+| `current`, `voltage` | BMS 2004, 2107 | verified by the energy check (§6.4) |
+| `power` | computed: voltage × current ÷ 1000 | from the two above |
+| `is_charging`, `is_dcfc` | unknown | needs a charging session; fallback: current < −5 A while stationary |
+| `is_parked` | unknown | needs a gear test; fallback: speed 0 for 60 s |
+| `batt_temp` | BMS 2089 ÷ 100 (candidate) | unverified |
+| `tire_pressure_*` | BCM 3427, 4 bytes (candidate) | scale and wheel order unverified |
+| `ext_temp`, `soh`, `est_battery_range`, `hvac_power`, `cabin_temp` | not found | nice to have |
 
 ---
 
@@ -323,6 +329,25 @@ To test: Connect, then on Discover run the sweep while parked in Ready (it can b
 1. A recording with the sweep results and the fixes: a mixed drive (city, highway, hard acceleration, strong regen, reversing, parked in Ready), plus AC or DC charging if possible.
 2. Phase 1d analysis of that recording.
 3. **Only if (1) doesn't give gear and charging state:** a wider sweep of VCU, PDU and OHC. About 1.5 h per module at the rate cap for the full 0x0000–0xFFFF range; it can resume and can run while charging.
+
+### 6.4 First drive with all DIDs (2026-09-29)
+A 32-minute mixed drive (city, highway, hard acceleration, strong regen, reversing, parked in Ready). It was recorded with the 1b build, so it polled all 272 DIDs at about 5.4 reads/s: BMS DIDs about every 33 s, the others about every 100 s. Of the 272 DIDs, 101 changed. Analysis: `tools/analyze/analyze.py`.
+
+- **Speed: `EFF7` on every module**, uint16 ÷ 10 = km/h, r = 0.999 against GPS. It reads ≈3 % below GPS, the same gap as the odometer against GPS distance, so it's consistent with the car's own odometer. ESP `FD00` holds four wheel speeds (uint16 each, ≈0.0288 km/h per bit).
+- **The `EFxx` DIDs are live**: `EFF6` is a clock, `EFF7` speed, `EFF8` odometer, `EFF9` 12 V. The §6.3 fix wrongly read them once per session; now only `F1xx` is read once.
+- **Pack current: BMS `2004`**, bytes 2–3 uint16 × 0.1 − 2000 A, positive while discharging. Over the drive it integrates to 5.75 kWh; the SOC drop gives 5.54 kWh at 113 kWh. BMS `2016` (int32 × 0.1 A) tracks it but reads 0 A at idle when `2004` shows ≈7 A, so it probably excludes auxiliary loads.
+- **Pack voltage: BMS `2107`** (also `2109`, `2117`), uint16 ÷ 10: 391–413 V, sags under load. It equals ≈102 × the cell voltage in `2136`–`2138` (3.84–4.04 V).
+- **SOC:** `2050` read 75.1 % when the dash showed 74 %. `2047`/`2048`/`2049` sit 1.2–2.4 points lower (they look like max/min/average) and `2047` read 73.9 %. Which one the dash shows is still open.
+- **Tyre pressures: BCM `3427`**, 4 bytes, zero until the TPMS sensors wake after ≈20 min of driving, then `C1 C1 C3 C2`. At 0.2 psi per bit that's 38.6–39.0 psi; the scale and wheel order need the dash.
+- **Other states:** BCM `3403`/`3404` changed when the doors locked after pulling away, and BMS `2061` reads 01 when parked in Ready and 05 while driving. Neither is a gear signal, and nothing in the swept ranges changed only when reversing.
+- **Battery temperature candidate: BMS `2089`–`2094`**, 22.1–22.3 at ÷100. It was 22.3 the day before as well, so it's plausible for a thermally managed pack but not confirmed.
+
+**Still needed:**
+1. **A charging session**, AC and DC if possible, to find `is_charging`, `is_dcfc` and the charging current sign. A few minutes of recording before and after plugging in are enough.
+2. **SOC against the dash:** at two or three different charge levels, tap "Read known values" on Connect and note the dash SOC at the same moment. Compare `soc` (2050) with `soc_2047`/`2048`/`2049`.
+3. **Tyre pressures against the dash:** once, after a drive of 20+ minutes, read the four dash pressures and "Tyre pressure 1–4" on Connect together.
+4. **A gear test:** stationary in Ready, P → D → N → R → P, about 20 s each, noting the times. If nothing in the current DIDs follows the gear, the VCU needs a wider sweep (§6.3). For ABRP the fallback (speed 0 for 60 s = parked) works in the meantime.
+5. **A recording with the new build**, for faster sampling: the gear test and charging session will already give this.
 
 APK delivery: `.github/workflows/build-apk.yml` runs `flutter test` and `flutter build apk --debug` on every push. The APK is attached to the workflow run as a downloadable artifact, which you sideload on the Pixel ("Install unknown apps" enabled for your browser or Files app). A debug build signs with a debug key, so each new version installs over the previous one without uninstalling.
 
