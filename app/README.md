@@ -1,17 +1,12 @@
-# ocean_abrp_connect
+# Ocean ABRP Connect
 
-A new Flutter project.
+Sends live data from a Fisker Ocean to A Better Route Planner (PLAN.md §5). It reads the car through a vLinker FD+ BLE OBD adapter using `packages/ocean_obd`, and uploads SOC, speed, power, voltage, current, odometer, GPS and the inferred parked/charging state to ABRP's Telemetry API.
 
-## Getting Started
+Each user enters their own ABRP API key (ABRP → API keys → telemetry) and vehicle token (ABRP → your Ocean → Modify connections → Generic → Link) on the ABRP tab. Both are stored only in the phone's secure storage.
 
-This project is a starting point for a Flutter application.
+- **ABRP**: key and token, Start/Stop sending, upload status, the latest values, and a check of what ABRP received.
+- **Car**: connect to the adapter, `ATRV`, the known signals, and Settings (units).
 
-A few resources to get you started if this is your first Flutter project:
-
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+```
+cd app && flutter test && flutter run
+```
