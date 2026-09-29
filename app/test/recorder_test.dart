@@ -90,7 +90,7 @@ void main() {
 
     test('identification DIDs', () {
       expect(isIdentificationDid(0xF190), isTrue);
-      expect(isIdentificationDid(0xEFF8), isTrue);
+      expect(isIdentificationDid(0xEFF7), isFalse); // live: vehicle speed
       expect(isIdentificationDid(0x2050), isFalse);
       expect(isIdentificationDid(0xFD00), isFalse);
     });
@@ -102,11 +102,14 @@ void main() {
       DidHit(module: 'BMS', did: 0x2003, sample: '0F22'),
       DidHit(module: 'BMS', did: 0xF187, sample: '46'),
       DidHit(module: 'VCU', did: 0xEFF9, sample: '36EE'), // known, polled
+      DidHit(module: 'VCU', did: 0xEFF7, sample: '0000'), // live speed
       DidHit(module: 'ESP', did: 0xFD0A, nrc: 0x10), // refused: skipped
       DidHit(module: 'NOPE', did: 0x1234, sample: '00'), // unknown module
     ]);
     final t = splitRecordTargets(table, state);
-    expect(t.poll.map((e) => '$e').toSet(), {'BMS:2003', 'BMS:2050', 'BCM:3409', 'VCU:EFF9'});
+    final poll = t.poll.map((e) => '$e').toSet();
+    expect(poll, containsAll(['BMS:2003', 'BMS:2050', 'BCM:3409', 'VCU:EFF9', 'VCU:EFF7']));
+    expect(poll.intersection({'BMS:F187', 'VCU:F190', 'ESP:FD0A', 'NOPE:1234'}), isEmpty);
     expect(t.once.map((e) => '$e').toSet(), {'BMS:F187', 'VCU:F190'});
   });
 

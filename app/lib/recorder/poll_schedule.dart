@@ -19,11 +19,11 @@ class PollTarget {
   String toString() => '${module.name}:$didHex';
 }
 
-/// Identification and snapshot DIDs (ISO 14229 `F1xx`, supplier `EFxx`).
+/// Identification DIDs (ISO 14229 `F1xx`: part numbers, versions, VIN).
 /// Their values don't change during a drive, so they are read once per
-/// session rather than polled.
-bool isIdentificationDid(int did) =>
-    (did >= 0xF100 && did <= 0xF1FF) || (did >= 0xEF00 && did <= 0xEFFF);
+/// session rather than polled. The `EFxx` DIDs are live on the Ocean
+/// (`EFF7` speed, `EFF8` odometer, `EFF9` 12 V), so they are polled.
+bool isIdentificationDid(int did) => did >= 0xF100 && did <= 0xF1FF;
 
 /// Polling order for recording (PLAN.md §4.1, screen 3).
 ///
