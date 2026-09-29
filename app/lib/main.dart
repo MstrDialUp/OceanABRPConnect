@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -5,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'app/app_settings.dart';
+import 'discovery/sweep_state.dart';
 import 'platform/background.dart';
 import 'signals/signal_table.dart';
 import 'ui/connect_controller.dart';
@@ -31,6 +33,7 @@ Future<void> main() async {
     connect: connect,
     table: table,
     store: JsonFileStore(File('${docs.path}/discovery.json')),
+    bundled: await _loadBundledDids(settings.carOs),
   );
   await discovery.load();
   final sessionsDir = Directory('${docs.path}/sessions');
@@ -48,6 +51,16 @@ Future<void> main() async {
     record: record,
     sessionsDir: sessionsDir,
   ));
+}
+
+/// The DID list for [carOs] bundled with the app, or none if there isn't one.
+Future<List<DidHit>> _loadBundledDids(String carOs) async {
+  try {
+    final text = await rootBundle.loadString('assets/signals/sweep_os-$carOs.json');
+    return parseBundledDidList(jsonDecode(text) as Map<String, dynamic>);
+  } catch (_) {
+    return const [];
+  }
 }
 
 class OceanAbrpApp extends StatefulWidget {

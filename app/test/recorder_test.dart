@@ -113,6 +113,20 @@ void main() {
     expect(t.once.map((e) => '$e').toSet(), {'BMS:F187', 'VCU:F190'});
   });
 
+  test('bundled DID list parses and feeds recording targets', () {
+    final table = SignalTable.parse(File('assets/signals/ocean.json').readAsStringSync());
+    final bundled = parseBundledDidList(
+        jsonDecode(File('assets/signals/sweep_os-2.2.3.json').readAsStringSync())
+            as Map<String, dynamic>);
+    expect(bundled.length, 272);
+    expect(bundled.every((h) => h.positive && h.sample.isEmpty), isTrue);
+    final t = splitRecordTargets(table, SweepState(rangesKey: 'x'), bundled: bundled);
+    final poll = t.poll.map((e) => '$e').toSet();
+    expect(poll, containsAll(['VCU:EFF7', 'BMS:2004', 'BMS:2107', 'ESP:FD00', 'BCM:3427']));
+    expect(t.once.every((e) => e.did >= 0xF100 && e.did <= 0xF1FF), isTrue);
+    expect(t.poll.length + t.once.length, 272);
+  });
+
   group('Recorder', () {
     test('writes header, DID values, NRCs, GPS, voltage and footer', () async {
       final fake = FakeElm(replies: {

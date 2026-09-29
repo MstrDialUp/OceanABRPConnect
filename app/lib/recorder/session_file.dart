@@ -14,9 +14,11 @@ class SessionHeader {
     required this.start,
     this.adapter,
     this.vin,
+    this.gitSha,
   });
 
   final String appVersion;
+  final String? gitSha;
   final String carOs;
   final DateTime start;
   final String? adapter;
@@ -28,6 +30,7 @@ class SessionHeader {
         't': start.millisecondsSinceEpoch,
         'start': start.toUtc().toIso8601String(),
         'app': appVersion,
+        'git': ?gitSha,
         'car_os': carOs,
         'adapter': adapter,
         'vin': vin,

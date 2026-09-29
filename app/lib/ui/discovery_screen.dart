@@ -98,6 +98,8 @@ class DiscoveryScreen extends StatelessWidget {
               const Divider(height: 32),
               Text('Responding DIDs: ${state.positiveHits.length} with data, '
                   '${state.hits.length - state.positiveHits.length} refused'),
+              Text('Bundled with the app: ${c.bundled.length} DIDs '
+                  '(used for recording even without a local sweep)'),
               const SizedBox(height: 8),
               Text('OBD mode 01: ${state.obdDone ? '' : 'not done'}'),
               for (final e in state.obd.entries)

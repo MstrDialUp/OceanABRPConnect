@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../app/app_settings.dart';
+import '../app/build_info.dart';
 import '../util/units.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -53,6 +54,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 helperText: 'Saved in every recording; update it after an OTA.',
               ),
               onChanged: (v) => s.update(carOs: v),
+            ),
+            const SizedBox(height: 24),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('App build'),
+              subtitle: SelectableText('${BuildInfo.label}\n${BuildInfo.gitSha}'),
             ),
           ],
         ),
