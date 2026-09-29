@@ -3,14 +3,17 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ocean_abrp_connect/discovery/sweep_state.dart';
 import 'package:ocean_abrp_connect/elm/ecu_module.dart';
 import 'package:ocean_abrp_connect/elm/elm_client.dart';
 import 'package:ocean_abrp_connect/recorder/checklist.dart';
 import 'package:ocean_abrp_connect/recorder/poll_schedule.dart';
 import 'package:ocean_abrp_connect/recorder/recorder.dart';
 import 'package:ocean_abrp_connect/recorder/session_file.dart';
+import 'package:ocean_abrp_connect/signals/signal_table.dart';
 import 'package:ocean_abrp_connect/transport/elm_transport.dart';
 import 'package:ocean_abrp_connect/uds/uds_client.dart';
+import 'package:ocean_abrp_connect/ui/discovery_controller.dart';
 
 import 'fake_elm.dart';
 
@@ -18,6 +21,15 @@ const bms = EcuModule('BMS', 0x7E1, 0x7E9);
 const vcu = EcuModule('VCU', 0x7C2, 0x7CA);
 const ecc = EcuModule('ECC', 0x7F0, 0x7F8);
 const esp = EcuModule('ESP', 0x7D0, 0x7D8);
+
+/// Waits until [cond] holds (timers are coarse on some platforms).
+Future<void> waitFor(bool Function() cond, {Duration timeout = const Duration(seconds: 5)}) async {
+  final sw = Stopwatch()..start();
+  while (!cond()) {
+    if (sw.elapsed > timeout) throw StateError('condition not met in $timeout');
+    await Future<void>.delayed(const Duration(milliseconds: 5));
+  }
+}
 
 List<Map<String, dynamic>> readLines(File f) => const LineSplitter()
     .convert(f.readAsStringSync())
@@ -36,22 +48,35 @@ void main() {
       );
 
   group('PollSchedule', () {
-    test('gives priority modules three turns for every other one', () {
+    test('reads each module back to back; priority modules every round', () {
       final s = PollSchedule(const [
         PollTarget(bms, 0x2050),
-        PollTarget(vcu, 0xEFF9),
         PollTarget(ecc, 0x2001),
-        PollTarget(esp, 0x2002),
+        PollTarget(bms, 0x2003),
+        PollTarget(vcu, 0xEFF9),
+        PollTarget(esp, 0xFD00),
+        PollTarget(ecc, 0x2002),
+      ], priorityModules: const {'BMS', 'VCU'});
+      final order = [for (var i = 0; i < 12; i++) s.next().toString()];
+      expect(order, [
+        'BMS:2050', 'BMS:2003', 'VCU:EFF9', 'ECC:2001', 'ECC:2002', //
+        'BMS:2050', 'BMS:2003', 'VCU:EFF9', 'ESP:FD00',
+        'BMS:2050', 'BMS:2003', 'VCU:EFF9',
       ]);
-      final counts = <String, int>{};
-      for (var i = 0; i < 400; i++) {
-        final t = s.next();
-        counts['$t'] = (counts['$t'] ?? 0) + 1;
+    });
+
+    test('module switches are rare', () {
+      final targets = [
+        for (var d = 0; d < 60; d++) PollTarget(bms, 0x2000 + d),
+        for (var d = 0; d < 40; d++) PollTarget(ecc, 0x3400 + d),
+      ];
+      final s = PollSchedule(targets);
+      final seq = [for (var i = 0; i < 1000; i++) s.next().module.name];
+      var switches = 0;
+      for (var i = 1; i < seq.length; i++) {
+        if (seq[i] != seq[i - 1]) switches++;
       }
-      expect(counts['BMS:2050'], 150);
-      expect(counts['VCU:EFF9'], 150);
-      expect(counts['ECC:2001'], 50);
-      expect(counts['ESP:2002'], 50);
+      expect(switches, lessThan(25));
     });
 
     test('works with only one kind of target', () {
@@ -62,6 +87,27 @@ void main() {
     test('deduplicates targets', () {
       expect(PollSchedule(const [PollTarget(bms, 1), PollTarget(bms, 1)]).length, 1);
     });
+
+    test('identification DIDs', () {
+      expect(isIdentificationDid(0xF190), isTrue);
+      expect(isIdentificationDid(0xEFF8), isTrue);
+      expect(isIdentificationDid(0x2050), isFalse);
+      expect(isIdentificationDid(0xFD00), isFalse);
+    });
+  });
+
+  test('splitRecordTargets polls live DIDs and reads identification DIDs once', () {
+    final table = SignalTable.parse(File('assets/signals/ocean.json').readAsStringSync());
+    final state = SweepState(rangesKey: 'x', hits: [
+      DidHit(module: 'BMS', did: 0x2003, sample: '0F22'),
+      DidHit(module: 'BMS', did: 0xF187, sample: '46'),
+      DidHit(module: 'VCU', did: 0xEFF9, sample: '36EE'), // known, polled
+      DidHit(module: 'ESP', did: 0xFD0A, nrc: 0x10), // refused: skipped
+      DidHit(module: 'NOPE', did: 0x1234, sample: '00'), // unknown module
+    ]);
+    final t = splitRecordTargets(table, state);
+    expect(t.poll.map((e) => '$e').toSet(), {'BMS:2003', 'BMS:2050', 'BCM:3409', 'VCU:EFF9'});
+    expect(t.once.map((e) => '$e').toSet(), {'BMS:F187', 'VCU:F190'});
   });
 
   group('Recorder', () {
@@ -75,14 +121,14 @@ void main() {
       final writer = await newWriter();
       final gps = StreamController<GpsFix>();
       final rec = Recorder(
-        uds: uds,
+        uds: () => uds,
         writer: writer,
         schedule: PollSchedule(const [PollTarget(bms, 0x2050), PollTarget(vcu, 0xEFF9)]),
         gps: gps.stream,
       );
       final done = rec.run();
       gps.add(const GpsFix(lat: 45.5, lon: -122.6, speedKmh: 50.123, headingDeg: 90));
-      await Future<void>.delayed(const Duration(milliseconds: 50));
+      await waitFor(() => rec.stats.values >= 2 && rec.stats.negatives >= 2);
       rec.stop();
       await done;
       await writer.finish(StopReport(checked: {'city', 'heating'}, socPercent: 90, notes: 'test'));
@@ -111,7 +157,7 @@ void main() {
       final uds = UdsClient(ElmClient(ElmTransport(fake)));
       final writer = await newWriter();
       final rec = Recorder(
-        uds: uds,
+        uds: () => uds,
         writer: writer,
         schedule: PollSchedule(const [PollTarget(bms, 0x2050)]),
         carOffRecheck: const Duration(milliseconds: 10),
@@ -131,18 +177,85 @@ void main() {
       final uds = UdsClient(ElmClient(ElmTransport(fake, minBusInterval: Duration.zero)));
       final writer = await newWriter();
       final rec = Recorder(
-        uds: uds,
+        uds: () => uds,
         writer: writer,
         schedule: PollSchedule(const [PollTarget(bms, 0x2050)]),
         noResponseLimit: 3,
       );
       final done = rec.run();
-      await Future<void>.delayed(const Duration(milliseconds: 50));
+      await waitFor(() => !rec.stats.carOn && rec.stats.noResponses >= 3);
+      await Future<void>.delayed(const Duration(milliseconds: 30));
       rec.stop();
       await done;
       await writer.close();
       expect(fake.sent.where((c) => c == '222050').length, 3);
       expect(readLines(writer.file).any((l) => l['what'] == 'no_response_streak'), isTrue);
+    });
+  });
+
+  group('Recorder link handling', () {
+    test('reads once-targets once, then polls', () async {
+      final fake = FakeElm(replies: {
+        'ATRV': '14.1V',
+        '22F190': '7CA0562F1904142',
+        '222050': '7E905622050038A',
+      });
+      final uds = UdsClient(ElmClient(ElmTransport(fake, minBusInterval: const Duration(milliseconds: 1))));
+      final writer = await newWriter();
+      final rec = Recorder(
+        uds: () => uds,
+        writer: writer,
+        schedule: PollSchedule(const [PollTarget(bms, 0x2050)]),
+        onceTargets: const [PollTarget(vcu, 0xF190)],
+      );
+      final done = rec.run();
+      await waitFor(() => fake.sent.where((c) => c == '222050').length > 3);
+      rec.stop();
+      await done;
+      await writer.close();
+      expect(fake.sent.where((c) => c == '22F190').length, 1);
+      expect(fake.sent.where((c) => c == '222050').length, greaterThan(3));
+    });
+
+    test('keeps going through a dropped link and resumes on a new session', () async {
+      final fake1 = FakeElm(replies: {'ATRV': '14.1V', '222050': '7E905622050038A'});
+      final fake2 = FakeElm(replies: {'ATRV': '14.1V', '222050': '7E905622050038B'});
+      UdsClient mk(FakeElm f) =>
+          UdsClient(ElmClient(ElmTransport(f, minBusInterval: const Duration(milliseconds: 1))));
+      UdsClient? current = mk(fake1);
+      final writer = await newWriter();
+      final gps = StreamController<GpsFix>();
+      final rec = Recorder(
+        uds: () => current,
+        writer: writer,
+        schedule: PollSchedule(const [PollTarget(bms, 0x2050)]),
+        gps: gps.stream,
+        linkRecheck: const Duration(milliseconds: 5),
+      );
+      final done = rec.run();
+      await waitFor(() => rec.stats.values > 0);
+
+      // BLE drops: writes fail, then the controller withdraws the session.
+      fake1.linkDown = true;
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      current = null;
+      gps.add(const GpsFix(lat: 1, lon: 2));
+      await waitFor(() => rec.stats.status.contains('reconnecting'));
+
+      // Reconnected with a fresh session (gate closed until ATRV).
+      current = mk(fake2);
+      await waitFor(() => fake2.sent.contains('222050'));
+      rec.stop();
+      await done;
+      await writer.close();
+
+      expect(fake2.sent.first, 'ATRV');
+      expect(fake2.sent.where((c) => c == '222050'), isNotEmpty);
+      final lines = readLines(writer.file);
+      final events = lines.where((l) => l['type'] == 'event').map((l) => l['what'] as String);
+      expect(events, containsAll(['link_lost', 'link_restored']));
+      expect(lines.where((l) => l['type'] == 'gps'), isNotEmpty);
+      expect(lines.where((l) => l['raw'] == '038B'), isNotEmpty);
     });
   });
 

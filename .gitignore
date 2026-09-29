@@ -14,3 +14,8 @@ Thumbs.db
 # Python analysis
 __pycache__/
 .venv/
+
+# Recorded data stays local: the repo is public and these files contain the
+# VIN and GPS tracks (PLAN.md §6.3).
+data/sessions/*.jsonl
+data/discovery/*.json

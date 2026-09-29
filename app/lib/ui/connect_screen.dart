@@ -50,6 +50,15 @@ class _ConnectScreenState extends State<ConnectScreen> {
                   ),
                 ],
               LinkState.connected => _connectedSection(context),
+              LinkState.reconnecting => [
+                  ListTile(
+                    leading: const CircularProgressIndicator(),
+                    title: const Text('Reconnecting to the adapter…'),
+                    subtitle: Text('Attempt ${c.reconnectAttempts}. '
+                        'A running recording keeps logging GPS meanwhile.'),
+                  ),
+                  TextButton(onPressed: c.disconnect, child: const Text('Stop reconnecting')),
+                ],
             },
             if (c.trace.isNotEmpty) ...[
               const Divider(),
