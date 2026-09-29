@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
@@ -14,6 +16,31 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
+    // One signing key for every build (CI and local), so a new APK can
+    // update the installed app. The keystore is git-ignored: CI restores it
+    // from repository secrets, locally it lives in android/keystore/. Without
+    // it, builds fall back to the machine's own debug key.
+    val sharedKeystore = rootProject.file("keystore/ci-debug.jks")
+    val keystoreProps = Properties().apply {
+        val f = rootProject.file("keystore/keystore.properties")
+        if (f.exists()) f.inputStream().use { load(it) }
+    }
+    fun keystoreValue(name: String, env: String): String? =
+        System.getenv(env) ?: keystoreProps.getProperty(name)
+    val hasSharedKey = sharedKeystore.exists() &&
+        keystoreValue("storePassword", "CI_KEYSTORE_PASSWORD") != null
+
+    signingConfigs {
+        if (hasSharedKey) {
+            create("shared") {
+                storeFile = sharedKeystore
+                storePassword = keystoreValue("storePassword", "CI_KEYSTORE_PASSWORD")
+                keyAlias = keystoreValue("keyAlias", "CI_KEY_ALIAS") ?: "oceanabrp"
+                keyPassword = keystoreValue("keyPassword", "CI_KEYSTORE_PASSWORD")
+            }
+        }
+    }
+
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.oceanabrp.ocean_abrp_connect"
@@ -26,10 +53,13 @@ android {
     }
 
     buildTypes {
+        debug {
+            if (hasSharedKey) signingConfig = signingConfigs.getByName("shared")
+        }
         release {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName(if (hasSharedKey) "shared" else "debug")
         }
     }
 }
