@@ -10,7 +10,10 @@ import '../transport/ble_uart_link.dart';
 import '../transport/elm_transport.dart';
 import '../uds/uds_client.dart';
 
-enum LinkState { idle, scanning, connecting, connected, failed }
+enum LinkState { idle, scanning, connecting, connected, reconnecting, failed }
+
+/// Wait before each reconnect attempt; the last value repeats.
+const reconnectBackoff = [2, 5, 10, 20, 30];
 
 /// Result of reading one known signal, for display next to the dash value.
 class SignalReading {
@@ -58,6 +61,10 @@ class ConnectController extends ChangeNotifier {
   UdsClient? _uds;
   StreamSubscription<List<ScanResult>>? _scanSub;
   StreamSubscription<BluetoothConnectionState>? _connSub;
+
+  /// The adapter to reconnect to after an unexpected drop.
+  BluetoothDevice? _device;
+  int reconnectAttempts = 0;
 
   bool get carOn => _transport?.gate.isOpen ?? false;
 
@@ -119,24 +126,67 @@ class ConnectController extends ChangeNotifier {
     trace.clear();
     notifyListeners();
     try {
-      final link = _link = await BleUartLink.connect(device);
-      linkDescription = link.description;
-      _connSub = device.connectionState.listen((s) {
-        if (s == BluetoothConnectionState.disconnected && state == LinkState.connected) {
-          _fail('Adapter disconnected');
-        }
-      });
-      final transport = _transport = ElmTransport(link)..onTrace = _addTrace;
-      final elm = _elm = ElmClient(transport);
-      _uds = UdsClient(elm);
-      await elm.initialize();
-      adapterId = await elm.adapterId();
-      volts = await elm.readVoltage();
+      await _open(device);
+      _device = device;
       state = LinkState.connected;
-      notifyListeners();
     } catch (e) {
       await _teardown();
       _fail('Connect failed: $e');
+    }
+    notifyListeners();
+  }
+
+  /// Connects the BLE link and runs the adapter setup. Sends nothing on the
+  /// CAN bus.
+  Future<void> _open(BluetoothDevice device) async {
+    final link = _link = await BleUartLink.connect(device);
+    linkDescription = link.description;
+    _connSub = device.connectionState.listen((s) {
+      if (s == BluetoothConnectionState.disconnected && state == LinkState.connected) {
+        _reconnect();
+      }
+    });
+    final transport = _transport = ElmTransport(link)..onTrace = _addTrace;
+    final elm = _elm = ElmClient(transport);
+    _uds = UdsClient(elm);
+    await elm.initialize();
+    adapterId = await elm.adapterId();
+    volts = await elm.readVoltage();
+  }
+
+  /// After an unexpected drop, retries with [reconnectBackoff] until it
+  /// works or the user taps Disconnect. Recording keeps logging GPS
+  /// meanwhile and resumes polling once [uds] is back.
+  Future<void> _reconnect() async {
+    final device = _device;
+    if (device == null) return;
+    state = LinkState.reconnecting;
+    reconnectAttempts = 0;
+    error = 'Adapter disconnected. Reconnecting…';
+    _addTrace('link lost');
+    await _teardown();
+    notifyListeners();
+    while (state == LinkState.reconnecting) {
+      final wait = reconnectBackoff[
+          reconnectAttempts < reconnectBackoff.length ? reconnectAttempts : reconnectBackoff.length - 1];
+      await Future<void>.delayed(Duration(seconds: wait));
+      if (state != LinkState.reconnecting) return;
+      reconnectAttempts++;
+      notifyListeners();
+      try {
+        await _open(device);
+        if (state != LinkState.reconnecting) {
+          await _teardown(); // user gave up while we were connecting
+          return;
+        }
+        state = LinkState.connected;
+        error = null;
+        _addTrace('reconnected after $reconnectAttempts attempt(s)');
+      } catch (e) {
+        await _teardown();
+        error = 'Adapter disconnected. Reconnect attempt $reconnectAttempts failed: $e';
+      }
+      notifyListeners();
     }
   }
 
@@ -182,8 +232,9 @@ class ConnectController extends ChangeNotifier {
   }
 
   Future<void> disconnect() async {
+    state = LinkState.idle; // also stops a reconnect loop
+    _device = null;
     await _teardown();
-    state = LinkState.idle;
     readings = [];
     adapterId = null;
     volts = null;

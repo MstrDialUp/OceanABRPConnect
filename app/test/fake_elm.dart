@@ -23,6 +23,9 @@ class FakeElm implements ByteLink {
   /// When false, commands get no reply at all (to test timeouts).
   bool responsive = true;
 
+  /// When true, writes throw, like a dropped BLE link.
+  bool linkDown = false;
+
   final _incoming = StreamController<List<int>>.broadcast();
 
   @override
@@ -30,6 +33,7 @@ class FakeElm implements ByteLink {
 
   @override
   Future<void> write(List<int> bytes) async {
+    if (linkDown) throw StateError('Device is disconnected');
     final text = ascii.decode(bytes);
     if (_monitoring) {
       // Any character stops ATMA.

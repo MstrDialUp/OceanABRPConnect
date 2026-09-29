@@ -2,7 +2,7 @@
 
 A Flutter phone app (Android first) that reads live data from a Fisker Ocean through a vLinker FD+ OBD dongle and sends it to A Better Route Planner (ABRP) using the ABRP "Generic" live-data token.
 
-Status: revision 6. Phases 1a and 1b implemented (see §6.1, §6.2); awaiting on-car test.
+Status: revision 7. Phases 1a and 1b done and tested on the car; the first sweep and sessions have been reviewed (§6.3). Next: a recording with the sweep results, then Phase 1d.
 
 ---
 
@@ -17,6 +17,7 @@ Status: revision 6. Phases 1a and 1b implemented (see §6.1, §6.2); awaiting on
 | Car software | Ocean OS 2.2.3. Every recording stores the OS version, because an OTA update can move or change data identifiers. |
 | Dongle | vLinker FD+ stays plugged in permanently. The app must never keep the car awake (see §5.4). |
 | Discovery | You will record sessions on your daily commute and while charging. The app gets a Start/Stop Recording button and a checklist on stop (see §4). |
+| Recorded data | Sessions and sweep results stay out of git. The repo is public, and these files contain the VIN and GPS tracks. You copy them into the git-ignored `data/sessions/` and `data/discovery/` locally for analysis. |
 | Audience | Personal use first. Sharing with other Ocean owners later is possible, so nothing should block that path (see §7). |
 | Development | Phase 1a onward is developed on your local machine (Flutter + Android SDK installed), with the Pixel connected over USB or wireless ADB. GitHub stays the source of truth; GitHub Actions still builds APKs as CI. See §9. |
 | Reference code | The Unfiskered Go HTML has been removed from the repo. The code is written from public standards: the ELM327 datasheet, ISO 15765-2 (ISO-TP) and ISO 14229 (UDS). The only things carried over are the module addresses and data identifiers listed in §1, and each one is verified on your car before use. |
@@ -162,8 +163,8 @@ Reference copies are in `docs/abrp/`: the Postman collection (`iternio-telemetry
 app/                 Flutter app
 app/assets/signals/  ocean.json signal table
 tools/analyze/       Python scripts for analysing recorded sessions
-data/sessions/       exported recordings (JSONL)
-data/discovery/      exported discovery.json sweep results
+data/sessions/       exported recordings (JSONL), git-ignored
+data/discovery/      exported discovery.json sweep results, git-ignored
 docs/abrp/           ABRP API reference copies
 .github/workflows/   APK build
 CLAUDE.md
@@ -186,7 +187,7 @@ The first build is the scanner. It shares the transport, ELM and UDS code with t
    - A large **Start Recording** button. After you press it you can lock the phone and drive, because recording runs in the foreground service.
    - While recording, the app polls every responding DID in a round-robin, weighted so BMS, VCU and MCU are read most often. It also logs GPS position, speed and heading once a second.
    - **Stop Recording** opens the checklist (§4.2). The session is then saved.
-4. **Sessions:** a list of saved sessions with duration, size and checklist summary, plus a share button that exports the JSONL for committing to `data/sessions/`.
+4. **Sessions:** a list of saved sessions with duration, size and checklist summary, plus a share button that exports the JSONL for copying into the local `data/sessions/`.
 
 ### 4.2 Stop checklist
 Tick everything that happened during the session:
@@ -213,7 +214,7 @@ Optional dash readings at stop, which help match values: SOC %, range shown, out
 - The last line is the footer: stop time, checklist, dash readings, notes.
 
 ### 4.4 Analysis (`tools/analyze/`)
-Python scripts I run on your committed sessions:
+Python scripts I run on the sessions in your local `data/sessions/`:
 - **Speed:** find DIDs that move in step with GPS speed, testing common scalings (÷10, ÷100, signed/unsigned, byte offsets).
 - **Power and charging:** find DIDs in a plausible pack-voltage range (~300–450 V), and DIDs that change sign between driving and charging sessions (current). Check power ≈ V × I against regen and acceleration events.
 - **Gear and state:** find DIDs with a small set of values that change only when parked, driving or reversing.
@@ -260,7 +261,7 @@ While the phone is near the car the dongle is always advertising, so the app can
 | 0 | Email Iternio (Appendix A). Get the ABRP Generic token. Set up local development (§9.2). | you |
 | 1a | Flutter scaffold, BLE transport, ELM/UDS layers with unit tests, Connect screen verifying the known values. | me → you test |
 | 1b | Discovery sweep, recorder, checklist, session export. | me → you test |
-| 1c | Record commute and charging sessions; commit them to `data/sessions/`. | you |
+| 1c | Record commute and charging sessions; copy them into the local `data/sessions/`. | you |
 | 1d | Analysis, confirmed signal table. | me |
 | 2 | ABRP MVP: SOC, odometer, GPS, GPS speed, inferred `is_parked`; foreground service; token settings; `ATRV` wake logic. | me → you test |
 | 3 | Add power, voltage, current, charging flags, gear and temperatures from Phase 1 results. | me → you test |
@@ -280,7 +281,7 @@ To test on the car: open the Connect screen, scan, and tap the vLinker. Check `A
 
 ### 6.2 Phase 1b status
 Done in `app/`:
-- **Discover tab** (`discovery/`): sweeps the §4.1 DID ranges on every module in `ocean.json` (2,304 DIDs per module, about 30 min for all nine at the rate cap), then probes OBD mode `01` PIDs on 7DF and does a 5 s passive `ATMA` listen. Before starting it asks you to confirm you're parked in Ready. Progress is saved to `discovery.json` every 32 requests and on stop, so it resumes where it left off. A module that doesn't answer its first 8 requests is marked silent and skipped, and one that returns "serviceNotSupported" is skipped too. `requestOutOfRange` (NRC 0x31) is treated as "DID doesn't exist". Any other NRC is recorded as "exists but refused". The sweep re-checks `ATRV` every 30 s and pauses if the car turns off. "Share results" exports `discovery.json` (commit it to `data/discovery/`).
+- **Discover tab** (`discovery/`): sweeps the §4.1 DID ranges on every module in `ocean.json` (2,304 DIDs per module, about 30 min for all nine at the rate cap), then probes OBD mode `01` PIDs on 7DF and does a 5 s passive `ATMA` listen. Before starting it asks you to confirm you're parked in Ready. Progress is saved to `discovery.json` every 32 requests and on stop, so it resumes where it left off. A module that doesn't answer its first 8 requests is marked silent and skipped, and one that returns "serviceNotSupported" is skipped too. `requestOutOfRange` (NRC 0x31) is treated as "DID doesn't exist". Any other NRC is recorded as "exists but refused". The sweep re-checks `ATRV` every 30 s and pauses if the car turns off. "Share results" exports `discovery.json` (copy it into the local `data/discovery/`).
 - **Record tab** (`recorder/`): polls every DID that answered with data in the sweep, plus the known signals, in a weighted round-robin (BMS, VCU and MCUs get 3 turns per 1 for the others). GPS is logged about once a second. `ATRV` is re-read every 30 s. While the car is off nothing is polled and only GPS is recorded. After 20 unanswered requests in a row the gate closes until the next voltage check.
 - **Foreground service**: flutter_foreground_task with types `connectedDevice|location` and a wake lock. It only keeps the process alive: BLE and GPS stay in the main isolate, because flutter_blue_plus is bound to the main Flutter engine. Swiping the app away from recents ends the recording, and the session is then saved without a footer; the Sessions list marks it "interrupted".
 - **Stop checklist** (§4.2) with optional dash readings typed in display units and converted to metric before saving, plus notes.
@@ -289,7 +290,39 @@ Done in `app/`:
 - **Settings** (gear on Connect): Imperial/Metric and the car OS version, stored in `settings.json`.
 - 111 unit tests.
 
-To test: Connect, then on Discover run the sweep while parked in Ready (it can be split over several sittings). Then on Record, start before a commute, lock the phone, and stop afterwards. Share the session and `discovery.json` from the app and commit them to `data/sessions/` and `data/discovery/`.
+To test: Connect, then on Discover run the sweep while parked in Ready (it can be split over several sittings). Then on Record, start before a commute, lock the phone, and stop afterwards. Share the session and `discovery.json` from the app and copy them into the local `data/sessions/` and `data/discovery/`.
+
+### 6.3 First sweep and sessions (2026-09-28, OS 2.2.3)
+**Sweep:** it finished on all nine modules; 272 DIDs returned data, and ESP `FDxx` returned 15 "generalReject" (NRC 0x10).
+- **No standard OBD:** none of the mode `01` PIDs got an answer on 7DF.
+- **No usable broadcast traffic:** the passive `ATMA` listen saw one frame repeated with `<DATA ERROR` until `BUFFER FULL`, so every value has to be polled. `ATMA` isn't worth repeating.
+- **Live data in the swept ranges is only on BMS `20xx`/`21xx` (≈65 DIDs), BCM `34xx` (≈40) and ESP `FDxx` (8).** VCU, MCU_F/R, OHC, PDU and ECC answered only identification DIDs (`EFFx`, `F1xx`). `EFF8` on every module holds the same odometer ×100, and `EFF9` is the 12 V value everywhere.
+- **Candidates from the sweep snapshot**, to be confirmed with recordings:
+
+| Candidate | DIDs | Snapshot |
+|---|---|---|
+| pack voltage | BMS `2003`, `2107`, `2109`, `2117` | 0x0F21–0x0F24 ≈ 387 V at ÷10 |
+| cell voltage min/max/avg | BMS `2136`–`2138` | 3.79–3.81 V at ÷1000 |
+| cell temperatures | BMS `2089`–`2094` | ≈22.3 °C at ÷100 (it was ≈22 °C outside) |
+| SOC variants | BMS `2047`–`2049` | 59.9–61.2 % at ÷10 |
+| current (offset?) | BMS `2004` | 0x4E3A |
+| wheel speeds | ESP `FD00` | 4 × uint16 |
+
+**Sessions:** four sessions: a 32-minute mixed drive and three short ones. All were recorded before the sweep finished, so they only polled the four known signals.
+- **Odometer:** BCM `3409` moves in 0.1 km steps and matched GPS distance within GPS noise (22.6 vs 23.3 km, 1.5 vs 1.7 km, 1.3 vs 1.45 km).
+- **SOC:** BMS `2050` read 58.2–59.1 % at the end of sessions where the dash showed 58 %. Check which DID tracks the dash SOC, because ABRP should get the displayed value.
+- **BLE drop:** one short session ended when the link dropped and the recorder stopped.
+- **Slow polling:** only ≈4.4 reads/s, because every read switched modules (three extra adapter round trips each time).
+
+**Fixes made after this review:**
+- The recorder reads identification DIDs (`EFxx`, `F1xx`, and the VIN) once per session, the first time the car is on. It polls only the live candidates plus the known signals.
+- `PollSchedule` reads each module's DIDs back to back. Each round reads every priority module (BMS, VCU, MCU_F/R, ESP), then one other module in rotation.
+- **Auto-reconnect:** after an unexpected BLE drop, Connect retries with 2/5/10/20/30 s back-off. The recorder keeps logging GPS, logs `link_lost` / `link_restored`, and resumes polling after a fresh `ATRV` check.
+
+**Still needed:**
+1. A recording with the sweep results and the fixes: a mixed drive (city, highway, hard acceleration, strong regen, reversing, parked in Ready), plus AC or DC charging if possible.
+2. Phase 1d analysis of that recording.
+3. **Only if (1) doesn't give gear and charging state:** a wider sweep of VCU, PDU and OHC. About 1.5 h per module at the rate cap for the full 0x0000–0xFFFF range; it can resume and can run while charging.
 
 APK delivery: `.github/workflows/build-apk.yml` runs `flutter test` and `flutter build apk --debug` on every push. The APK is attached to the workflow run as a downloadable artifact, which you sideload on the Pixel ("Install unknown apps" enabled for your browser or Files app). A debug build signs with a debug key, so each new version installs over the previous one without uninstalling.
 

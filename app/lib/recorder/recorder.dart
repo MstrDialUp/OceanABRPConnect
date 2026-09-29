@@ -45,24 +45,32 @@ class RecorderStats {
 /// (PLAN.md §4.1, screen 3). Nothing goes on the bus unless ATRV shows the
 /// car on; after [noResponseLimit] unanswered requests in a row the gate is
 /// closed and polling waits for the next voltage check (PLAN.md §5.4).
+///
+/// [uds] returns the current adapter session, or null while the BLE link is
+/// down; GPS keeps recording meanwhile and polling resumes on reconnect.
+/// [onceTargets] (identification DIDs) are read the first time the car is on.
 class Recorder {
   Recorder({
     required this.uds,
     required this.writer,
     required this.schedule,
+    this.onceTargets = const [],
     this.gps,
     this.voltageEvery = const Duration(seconds: 30),
     this.carOffRecheck = const Duration(seconds: 30),
+    this.linkRecheck = const Duration(seconds: 2),
     this.noResponseLimit = 20,
     this.flushEvery = const Duration(seconds: 5),
   });
 
-  final UdsClient uds;
+  final UdsClient? Function() uds;
   final SessionWriter writer;
   final PollSchedule schedule;
+  final List<PollTarget> onceTargets;
   final Stream<GpsFix>? gps;
   final Duration voltageEvery;
   final Duration carOffRecheck;
+  final Duration linkRecheck;
   final int noResponseLimit;
   final Duration flushEvery;
 
@@ -74,6 +82,10 @@ class Recorder {
   bool _stopping = false;
   Completer<void>? _wake;
   StreamSubscription<GpsFix>? _gpsSub;
+  UdsClient? _lastUds;
+  bool _onceDone = false;
+  int _streak = 0;
+  final _sinceVoltage = Stopwatch();
 
   bool get isStopping => _stopping;
 
@@ -81,16 +93,29 @@ class Recorder {
   Future<void> run() async {
     _gpsSub = gps?.listen(_onFix);
     final flushTimer = Timer.periodic(flushEvery, (_) => writer.flush());
-    final sinceVoltage = Stopwatch();
-    var streak = 0;
     writer.event('record_start');
     try {
       while (!_stopping) {
         // Let timers (flush, stop, UI) run even if replies arrive instantly.
         await Future<void>.delayed(Duration.zero);
-        if (!sinceVoltage.isRunning || sinceVoltage.elapsed >= voltageEvery) {
-          await _checkVoltage();
-          sinceVoltage
+        final u = uds();
+        if (u == null) {
+          if (_lastUds != null) writer.event('link_lost');
+          _lastUds = null;
+          stats.carOn = false;
+          stats.status = 'Adapter disconnected: reconnecting, GPS only';
+          onUpdate?.call();
+          await _sleep(linkRecheck);
+          continue;
+        }
+        if (!identical(u, _lastUds)) {
+          if (_lastUds == null && stats.reads > 0) writer.event('link_restored');
+          _lastUds = u;
+          _sinceVoltage.stop(); // new session: its gate starts closed
+        }
+        if (!_sinceVoltage.isRunning || _sinceVoltage.elapsed >= voltageEvery) {
+          await _checkVoltage(u);
+          _sinceVoltage
             ..reset()
             ..start();
         }
@@ -98,7 +123,17 @@ class Recorder {
           stats.status = 'Car off: not polling, GPS only';
           onUpdate?.call();
           await _sleep(carOffRecheck);
-          sinceVoltage.stop(); // force a voltage check next time round
+          _sinceVoltage.stop(); // force a voltage check next time round
+          continue;
+        }
+        if (!_onceDone) {
+          stats.status = 'Reading ${onceTargets.length} identification DIDs';
+          onUpdate?.call();
+          for (final t in onceTargets) {
+            if (_stopping) break;
+            await _poll(u, t);
+          }
+          _onceDone = true;
           continue;
         }
         if (schedule.isEmpty) {
@@ -108,43 +143,14 @@ class Recorder {
           continue;
         }
 
-        final target = schedule.next();
         stats.status = 'Polling ${schedule.length} DIDs';
-        final ReadResult r;
-        try {
-          r = await uds.readDid(target.module, target.did);
-        } on BusClosedException {
-          stats.carOn = false;
-          continue;
-        } on ElmTimeoutException catch (e) {
-          writer.event('timeout ${e.command}');
-          streak++;
-          continue;
-        } on ElmSetupException catch (e) {
-          writer.event('setup_error ${e.command} ${e.reply}');
-          streak++;
-          continue;
-        }
-        stats.reads++;
-        switch (r) {
-          case ReadValue(:final data):
-            streak = 0;
-            stats.values++;
-            writer.did(target.module.name, target.didHex, bytesToHex(data));
-          case ReadNegative(:final nrc):
-            streak = 0;
-            stats.negatives++;
-            writer.nrc(target.module.name, target.didHex, nrc);
-          case ReadNoResponse():
-            streak++;
-            stats.noResponses++;
-        }
-        if (streak >= noResponseLimit) {
-          streak = 0;
+        await _poll(u, schedule.next());
+        if (_streak >= noResponseLimit) {
+          _streak = 0;
           writer.event('no_response_streak');
-          uds.elm.transport.gate.close();
+          u.elm.transport.gate.close();
           stats.carOn = false;
-          sinceVoltage.stop();
+          _sinceVoltage.stop();
           await _sleep(const Duration(seconds: 10));
         }
         onUpdate?.call();
@@ -164,16 +170,55 @@ class Recorder {
     if (w != null && !w.isCompleted) w.complete();
   }
 
-  Future<void> _checkVoltage() async {
+  /// Reads one DID and logs the outcome. Never throws.
+  Future<void> _poll(UdsClient u, PollTarget target) async {
+    final ReadResult r;
+    try {
+      r = await u.readDid(target.module, target.did);
+    } on BusClosedException {
+      stats.carOn = false;
+      return;
+    } on ElmTimeoutException catch (e) {
+      writer.event('timeout ${e.command}');
+      _streak++;
+      return;
+    } on ElmSetupException catch (e) {
+      writer.event('setup_error ${e.command} ${e.reply}');
+      _streak++;
+      return;
+    } catch (e) {
+      // Usually the BLE link dropping; the connect controller will swap
+      // the session out, so wait a little before trying again.
+      writer.event('read_error $e');
+      await _sleep(linkRecheck);
+      return;
+    }
+    stats.reads++;
+    switch (r) {
+      case ReadValue(:final data):
+        _streak = 0;
+        stats.values++;
+        writer.did(target.module.name, target.didHex, bytesToHex(data));
+      case ReadNegative(:final nrc):
+        _streak = 0;
+        stats.negatives++;
+        writer.nrc(target.module.name, target.didHex, nrc);
+      case ReadNoResponse():
+        _streak++;
+        stats.noResponses++;
+    }
+  }
+
+  Future<void> _checkVoltage(UdsClient u) async {
     double? v;
     try {
-      v = await uds.elm.readVoltage();
+      v = await u.elm.readVoltage();
     } catch (e) {
       writer.event('atrv_error $e');
     }
     writer.voltage(v);
     stats.volts = v;
-    stats.carOn = uds.elm.transport.gate.isOpen;
+    stats.carOn = u.elm.transport.gate.isOpen;
     onUpdate?.call();
   }
 

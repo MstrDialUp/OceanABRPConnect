@@ -88,16 +88,28 @@ class DiscoveryController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// DIDs that answered positively, for recording. Falls back to the known
-  /// signals from ocean.json when no sweep has been done.
-  List<PollTarget> recordTargets() {
-    final targets = <PollTarget>{
-      for (final s in table.signals) PollTarget(s.module, s.did),
-    };
-    for (final h in state.positiveHits) {
-      final m = table.modules[h.module];
-      if (m != null) targets.add(PollTarget(m, h.did));
-    }
-    return targets.toList();
+  /// What to record: DIDs that answered positively in the sweep plus the
+  /// known signals. Identification DIDs (and known signals that aren't
+  /// polled, like the VIN) go in [once]; the rest are polled.
+  ({List<PollTarget> poll, List<PollTarget> once}) recordTargets() =>
+      splitRecordTargets(table, state);
+}
+
+/// See [DiscoveryController.recordTargets].
+({List<PollTarget> poll, List<PollTarget> once}) splitRecordTargets(
+    SignalTable table, SweepState state) {
+  final poll = <PollTarget>{};
+  final once = <PollTarget>{};
+  for (final s in table.signals) {
+    (s.pollSeconds > 0 ? poll : once).add(PollTarget(s.module, s.did));
   }
+  for (final h in state.positiveHits) {
+    final m = table.modules[h.module];
+    if (m == null) continue;
+    final t = PollTarget(m, h.did);
+    if (poll.contains(t)) continue;
+    (isIdentificationDid(h.did) ? once : poll).add(t);
+  }
+  once.removeAll(poll);
+  return (poll: poll.toList(), once: once.toList());
 }

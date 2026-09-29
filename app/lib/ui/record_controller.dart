@@ -76,11 +76,12 @@ class RecordController extends ChangeNotifier {
         ),
       );
       final targets = discovery.recordTargets();
-      targetCount = targets.length;
+      targetCount = targets.poll.length;
       final recorder = _recorder = Recorder(
-        uds: uds,
+        uds: () => connect.uds,
         writer: writer,
-        schedule: PollSchedule(targets),
+        schedule: PollSchedule(targets.poll),
+        onceTargets: targets.once,
         gps: Background.gpsFixes(),
       )..onUpdate = _throttledNotify;
       startedAt = start;
