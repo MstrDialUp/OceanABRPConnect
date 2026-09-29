@@ -19,3 +19,7 @@ __pycache__/
 # VIN and GPS tracks (PLAN.md §6.3).
 data/sessions/*.jsonl
 data/discovery/*.json
+
+# Signing key shared by CI and local builds, so every build can update the
+# installed app (PLAN.md §6). CI restores it from repository secrets.
+app/android/keystore/

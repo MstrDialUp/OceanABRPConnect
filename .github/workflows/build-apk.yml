@@ -8,6 +8,12 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      # The shared signing key (PLAN.md §6), so each APK can update the
+      # installed app. Absent for PRs from forks: those builds use a
+      # throwaway key and need an uninstall to install.
+      CI_KEYSTORE_B64: ${{ secrets.CI_KEYSTORE_B64 }}
+      CI_KEYSTORE_PASSWORD: ${{ secrets.CI_KEYSTORE_PASSWORD }}
     defaults:
       run:
         working-directory: app
@@ -24,6 +30,16 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Restore signing key
+        if: env.CI_KEYSTORE_B64 != ''
+        run: |
+          mkdir -p android/keystore
+          echo "$CI_KEYSTORE_B64" | base64 -d > android/keystore/ci-debug.jks
+
+      - name: Warn if there is no signing key
+        if: env.CI_KEYSTORE_B64 == ''
+        run: echo "::warning::CI_KEYSTORE_B64 is not set; this APK is signed with a throwaway key and can't update an installed app."
+
       - run: flutter pub get
       - run: flutter analyze
       - run: flutter test
@@ -37,8 +53,18 @@ jobs:
           --dart-define=GIT_REF=${{ github.head_ref || github.ref_name }}
           --dart-define=BUILD_NUMBER=${{ github.run_number }}
 
+      # A unique file name, so a downloaded APK can't be mistaken for an
+      # older app-debug.apk; and the signing certificate in the log.
+      - name: Name and describe the APK
+        run: |
+          APK=build/app/outputs/flutter-apk/ocean-abrp-connect-${{ github.run_number }}.apk
+          mv build/app/outputs/flutter-apk/app-debug.apk "$APK"
+          BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          "$BT/aapt2" dump badging "$APK" | head -1
+          "$BT/apksigner" verify --print-certs "$APK" | grep SHA-256
+
       - uses: actions/upload-artifact@v4
         with:
           name: ocean-abrp-connect-${{ github.run_number }}-${{ github.head_ref || github.ref_name }}
-          path: app/build/app/outputs/flutter-apk/app-debug.apk
+          path: app/build/app/outputs/flutter-apk/ocean-abrp-connect-${{ github.run_number }}.apk
           retention-days: 30
