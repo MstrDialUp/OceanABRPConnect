@@ -22,4 +22,8 @@ data/discovery/*.json
 
 # Signing key shared by CI and local builds, so every build can update the
 # installed app (PLAN.md §6). CI restores it from repository secrets.
-app/android/keystore/
+keystore/
+
+# Build by-products
+hs_err_pid*.log
+.kotlin/

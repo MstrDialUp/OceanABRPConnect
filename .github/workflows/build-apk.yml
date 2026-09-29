@@ -6,8 +6,34 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  package:
+    name: ocean_obd package
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/ocean_obd
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+
+  app:
+    name: ${{ matrix.name }}
+    needs: package
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - dir: app
+            name: ocean-abrp-connect
+          - dir: discovery
+            name: ocean-discovery
     env:
       # The shared signing key (PLAN.md §6), so each APK can update the
       # installed app. Absent for PRs from forks: those builds use a
@@ -16,7 +42,7 @@ jobs:
       CI_KEYSTORE_PASSWORD: ${{ secrets.CI_KEYSTORE_PASSWORD }}
     defaults:
       run:
-        working-directory: app
+        working-directory: ${{ matrix.dir }}
     steps:
       - uses: actions/checkout@v4
 
@@ -32,9 +58,10 @@ jobs:
 
       - name: Restore signing key
         if: env.CI_KEYSTORE_B64 != ''
+        working-directory: .
         run: |
-          mkdir -p android/keystore
-          echo "$CI_KEYSTORE_B64" | base64 -d > android/keystore/ci-debug.jks
+          mkdir -p keystore
+          echo "$CI_KEYSTORE_B64" | base64 -d > keystore/ci-debug.jks
 
       - name: Warn if there is no signing key
         if: env.CI_KEYSTORE_B64 == ''
@@ -54,10 +81,10 @@ jobs:
           --dart-define=BUILD_NUMBER=${{ github.run_number }}
 
       # A unique file name, so a downloaded APK can't be mistaken for an
-      # older app-debug.apk; and the signing certificate in the log.
+      # older one; and the version and signing certificate in the log.
       - name: Name and describe the APK
         run: |
-          APK=build/app/outputs/flutter-apk/ocean-abrp-connect-${{ github.run_number }}.apk
+          APK=build/app/outputs/flutter-apk/${{ matrix.name }}-${{ github.run_number }}.apk
           mv build/app/outputs/flutter-apk/app-debug.apk "$APK"
           BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
           "$BT/aapt2" dump badging "$APK" | head -1
@@ -65,6 +92,6 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: ocean-abrp-connect-${{ github.run_number }}-${{ github.head_ref || github.ref_name }}
-          path: app/build/app/outputs/flutter-apk/ocean-abrp-connect-${{ github.run_number }}.apk
+          name: ${{ matrix.name }}-${{ github.run_number }}-${{ github.head_ref || github.ref_name }}
+          path: ${{ matrix.dir }}/build/app/outputs/flutter-apk/${{ matrix.name }}-${{ github.run_number }}.apk
           retention-days: 30

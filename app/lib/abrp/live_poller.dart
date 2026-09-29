@@ -1,9 +1,9 @@
 import 'dart:async';
 
-import '../elm/elm_client.dart';
-import '../signals/signal_table.dart';
-import '../transport/elm_transport.dart';
-import '../uds/uds_client.dart';
+import 'package:ocean_obd/elm/elm_client.dart';
+import 'package:ocean_obd/signals/signal_table.dart';
+import 'package:ocean_obd/transport/elm_transport.dart';
+import 'package:ocean_obd/uds/uds_client.dart';
 import 'vehicle_state.dart';
 
 class LivePollerStats {

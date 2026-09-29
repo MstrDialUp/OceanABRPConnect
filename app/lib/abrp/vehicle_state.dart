@@ -1,4 +1,4 @@
-import '../recorder/recorder.dart' show GpsFix;
+import 'package:ocean_obd/platform/gps_fix.dart';
 import 'telemetry.dart';
 
 /// Latest decoded car values and GPS, turned into ABRP telemetry points.

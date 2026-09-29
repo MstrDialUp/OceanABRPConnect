@@ -1,5 +1,5 @@
 name: ocean_abrp_connect
-description: "Reads live data from a Fisker Ocean over a BLE OBD adapter and sends it to ABRP."
+description: "Ocean ABRP Connect: sends live data from a Fisker Ocean to A Better Route Planner."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -34,11 +34,9 @@ dependencies:
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
-  flutter_blue_plus: ^2.3.13
-  flutter_foreground_task: ^11.0.3
-  geolocator: ^14.1.1
+  ocean_obd:
+    path: ../packages/ocean_obd
   path_provider: ^2.1.6
-  share_plus: ^13.3.0
   http: ^1.6.0
   flutter_secure_storage: ^11.2.0
 
@@ -64,8 +62,6 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
-  assets:
-    - assets/signals/
 
   # To add assets to your application, add an assets section, like this:
   # assets:

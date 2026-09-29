@@ -1,6 +1,6 @@
 # OceanABRPConnect
 
-Flutter app (Android first) that reads live data from a Fisker Ocean through a vLinker FD+ BLE OBD dongle and sends it to ABRP's Telemetry API. `PLAN.md` is the source of truth for scope, phases and decisions; read it before starting work and update it when a decision changes.
+Flutter apps (Android first) that read live data from a Fisker Ocean through a vLinker FD+ BLE OBD dongle: **Ocean ABRP Connect** sends it to ABRP's Telemetry API, and **Ocean Discovery** is the tool used to find the data. `PLAN.md` is the source of truth for scope, phases and decisions; read it before starting work and update it when a decision changes.
 
 ## Hard rules
 - **Read-only on the vehicle.** The transport layer may only send ELM327 `AT` setup commands, UDS `0x22` (ReadDataByIdentifier) and OBD mode `01` requests. Never add DTC clears (`0x14`), writes (`0x2E`), routines (`0x31`), resets (`0x11`) or session changes (`0x10`). The allow-list is enforced in code and covered by tests.
@@ -9,17 +9,22 @@ Flutter app (Android first) that reads live data from a Fisker Ocean through a v
 - **Metric internally.** Signals, session files and ABRP payloads are metric. Imperial is a display-only conversion.
 - **Secrets.** The ABRP API key and user token are entered by each user in the app and stored only in the app's secure storage. Never bundle them in a build, commit them, put them in local config files, log them or put them in URLs.
 
-## Layout (planned)
-- `app/`: Flutter app (`transport/`, `elm/`, `uds/`, `signals/`, `recorder/`, `abrp/`, `ui/` under `lib/`)
-- `app/assets/signals/ocean.json`: signal table (module, DID, decoding, ABRP field, poll rate)
-- `tools/analyze/`: Python analysis of recorded sessions
-- `data/sessions/`: exported recording sessions (JSONL)
-- `docs/abrp/`: ABRP Telemetry API reference (Postman collection JSON, PDF, extracts)
+## Layout
+- `packages/ocean_obd/`: shared package: `transport/` (BLE, allow-list, ATRV gate), `elm/`, `uds/`, `signals/`, shared `ui/` (connect, settings), `platform/` (foreground service, GPS)
+- `packages/ocean_obd/assets/signals/ocean.json`: signal table (module, DID, decoding, ABRP field, poll rate, evidence); `sweep_os-*.json`: DIDs that answered in a sweep, without values
+- `app/`: Ocean ABRP Connect (`abrp/`, link UI). App ID `com.oceanabrp.ocean_abrp_connect`
+- `discovery/`: Ocean Discovery (`discovery/` sweep, `recorder/`, sessions UI). App ID `com.oceanabrp.ocean_discovery`
+- `docs/fisker-ocean/`: what we know about the Ocean's bus: `README.md` (findings with evidence) and `did-catalog.md` (generated)
+- `tools/analyze/`: Python analysis of sessions, the catalog and bundled-list generators
+- `data/sessions/`, `data/discovery/`: local recordings and sweeps, git-ignored (VIN and GPS)
+- `keystore/`: shared signing key, git-ignored; CI restores it from secrets
+- `docs/abrp/`: ABRP Telemetry API reference
 
 ## Commands
-- `cd app && flutter test`: unit tests (ISO-TP reassembly, decoders, allow-list, unit conversion)
-- `cd app && flutter run`: run on the connected Pixel
-- CI: `.github/workflows/build-apk.yml` builds a debug APK on every push
+- `cd packages/ocean_obd && flutter test`: package tests (allow-list, ATRV gate, ELM, ISO-TP, UDS, decoders, units)
+- `cd app && flutter test` / `cd discovery && flutter test`: app tests
+- `cd app && flutter run` (or `discovery`): run on the connected Pixel
+- CI: `.github/workflows/build-apk.yml` tests the package, then analyzes, tests and builds a debug APK of each app on every push
 
 ## Target device
 Pixel 10 Pro, Android 17. The foreground service types are `connectedDevice` and `location`.

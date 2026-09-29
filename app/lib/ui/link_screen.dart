@@ -3,8 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../abrp/credentials.dart';
-import '../app/app_settings.dart';
-import '../util/units.dart';
+import 'package:ocean_obd/app/app_settings.dart';
+import 'package:ocean_obd/util/units.dart';
 import 'link_controller.dart';
 
 /// The ABRP tab (PLAN.md §5.2): the user's own API key and token, the live

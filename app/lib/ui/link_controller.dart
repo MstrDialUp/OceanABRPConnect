@@ -7,10 +7,10 @@ import '../abrp/credentials.dart';
 import '../abrp/live_poller.dart';
 import '../abrp/uploader.dart';
 import '../abrp/vehicle_state.dart';
-import '../platform/background.dart';
-import '../recorder/recorder.dart' show GpsFix;
-import '../signals/signal_table.dart';
-import 'connect_controller.dart';
+import 'package:ocean_obd/platform/background.dart';
+import 'package:ocean_obd/platform/gps_fix.dart';
+import 'package:ocean_obd/signals/signal_table.dart';
+import 'package:ocean_obd/ui/connect_controller.dart';
 
 /// Drives the ABRP tab (PLAN.md §5): credentials, and the live link that
 /// polls the car and uploads to ABRP.
@@ -21,7 +21,6 @@ class LinkController extends ChangeNotifier {
     required this.store,
     AbrpClient Function(AbrpCredentials)? clientFactory,
     Stream<GpsFix> Function()? gps,
-    this.canDisconnectAdapter,
   })  : _clientFactory = clientFactory ?? ((c) => AbrpClient(c)),
         _gps = gps ?? Background.gpsFixes;
 
@@ -30,10 +29,6 @@ class LinkController extends ChangeNotifier {
   final CredentialStore store;
   final AbrpClient Function(AbrpCredentials) _clientFactory;
   final Stream<GpsFix> Function() _gps;
-
-  /// Whether the adapter may be disconnected when the car has been off for
-  /// a while (not while a recording still uses it).
-  final bool Function()? canDisconnectAdapter;
 
   AbrpCredentials? credentials;
   String? error;
@@ -120,7 +115,7 @@ class LinkController extends ChangeNotifier {
       error = 'The car has been off for 10 minutes, so the link stopped. '
           'Press Start next time you drive.';
       await stop();
-      if (canDisconnectAdapter?.call() ?? true) await connect.disconnect();
+      await connect.disconnect();
     };
     final uploader = _uploader = AbrpUploader(client: client, snapshot: vehicle.snapshot)
       ..onUpdate = _throttledNotify;

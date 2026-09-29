@@ -65,14 +65,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.19.1"
-  cross_file:
-    dependency: transitive
-    description:
-      name: cross_file
-      sha256: f141ea4f277af142a0356955707f6556f37b03947d39d55585981a06ca437bd6
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.3.5+5"
   crypto:
     dependency: transitive
     description:
@@ -143,7 +135,7 @@ packages:
     source: sdk
     version: "0.0.0"
   flutter_blue_plus:
-    dependency: "direct main"
+    dependency: transitive
     description:
       name: flutter_blue_plus
       sha256: "7ed10848c6366bee4bb29ca69fb81424ce1233cbdf8fc3d202991ef545549546"
@@ -199,7 +191,7 @@ packages:
     source: hosted
     version: "0.0.20"
   flutter_foreground_task:
-    dependency: "direct main"
+    dependency: transitive
     description:
       name: flutter_foreground_task
       sha256: fe0e8c88fbdeb703161e20c54ffd10593fb112ccfa068c989ad2a93d28e4b976
@@ -281,7 +273,7 @@ packages:
     source: hosted
     version: "0.1.1"
   geolocator:
-    dependency: "direct main"
+    dependency: transitive
     description:
       name: geolocator
       sha256: "4e41ad6bc072364ff01822531dac47936c065e5bf8f928f240a25bb51256ada0"
@@ -456,14 +448,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.18.0"
-  mime:
-    dependency: transitive
-    description:
-      name: mime
-      sha256: bd47de35f07e27267e69c8c8b22edf9473bfee170a60d60fcc93730c5144b7f6
-      url: "https://pub.dev"
-    source: hosted
-    version: "2.1.0"
   objective_c:
     dependency: transitive
     description:
@@ -472,6 +456,13 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "9.5.0"
+  ocean_obd:
+    dependency: "direct main"
+    description:
+      path: "../packages/ocean_obd"
+      relative: true
+    source: path
+    version: "0.1.0"
   package_config:
     dependency: transitive
     description:
@@ -592,22 +583,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.6.0"
-  share_plus:
-    dependency: "direct main"
-    description:
-      name: share_plus
-      sha256: "34f00f9becd2743c1fb05363d624f9f70d37f7ccdcdda47450bc0b8c9d327b8c"
-      url: "https://pub.dev"
-    source: hosted
-    version: "13.3.0"
-  share_plus_platform_interface:
-    dependency: transitive
-    description:
-      name: share_plus_platform_interface
-      sha256: "365ef7379fc22507256adda3385152942ffce08935452bc972c2e52a0bebae41"
-      url: "https://pub.dev"
-    source: hosted
-    version: "7.2.0"
   shared_preferences:
     dependency: transitive
     description:
@@ -725,38 +700,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.4.0"
-  url_launcher_linux:
-    dependency: transitive
-    description:
-      name: url_launcher_linux
-      sha256: "10f86fef4c2c43563fa6c211ff9cf757adf4d3ab762c56bd430664a947d70cd0"
-      url: "https://pub.dev"
-    source: hosted
-    version: "3.2.3"
-  url_launcher_platform_interface:
-    dependency: transitive
-    description:
-      name: url_launcher_platform_interface
-      sha256: "552f8a1e663569be95a8190206a38187b531910283c3e982193e4f2733f01029"
-      url: "https://pub.dev"
-    source: hosted
-    version: "2.3.2"
-  url_launcher_web:
-    dependency: transitive
-    description:
-      name: url_launcher_web
-      sha256: "85c81589622fbc87c1c683aaea164d3604a7777495a79d91e39ffcdec39ddb34"
-      url: "https://pub.dev"
-    source: hosted
-    version: "2.4.3"
-  url_launcher_windows:
-    dependency: transitive
-    description:
-      name: url_launcher_windows
-      sha256: "6c5ad3f22cd4c38e089b81963b3cd7bb83b111b2df5dce008bb066162f42e429"
-      url: "https://pub.dev"
-    source: hosted
-    version: "3.1.6"
   uuid:
     dependency: transitive
     description:

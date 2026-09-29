@@ -18,11 +18,11 @@ android {
 
     // One signing key for every build (CI and local), so a new APK can
     // update the installed app. The keystore is git-ignored: CI restores it
-    // from repository secrets, locally it lives in android/keystore/. Without
+    // from repository secrets, locally it lives in keystore/ at the repo root. Without
     // it, builds fall back to the machine's own debug key.
-    val sharedKeystore = rootProject.file("keystore/ci-debug.jks")
+    val sharedKeystore = rootProject.file("../../keystore/ci-debug.jks")
     val keystoreProps = Properties().apply {
-        val f = rootProject.file("keystore/keystore.properties")
+        val f = rootProject.file("../../keystore/keystore.properties")
         if (f.exists()) f.inputStream().use { load(it) }
     }
     fun keystoreValue(name: String, env: String): String? =

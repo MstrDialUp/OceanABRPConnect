@@ -3,7 +3,7 @@
 Usage:
     python3 tools/analyze/export_did_list.py data/discovery/<file>.json [os_version]
 
-Writes app/assets/signals/sweep_os-<version>.json with only the module and
+Writes packages/ocean_obd/assets/signals/sweep_os-<version>.json with only the module and
 DID of each positive response. Sample values are dropped, because some of
 them (F190) contain the VIN and the repo is public.
 """
@@ -40,7 +40,7 @@ def main(argv: list[str]) -> None:
         "notes": "DIDs that returned data in a discovery sweep (PLAN.md §6.3). Values are left out on purpose.",
         "dids": dict(sorted(dids.items())),
     }
-    dest = REPO / "app" / "assets" / "signals" / f"sweep_os-{os_version}.json"
+    dest = REPO / "packages" / "ocean_obd" / "assets" / "signals" / f"sweep_os-{os_version}.json"
     dest.write_text(json.dumps(out, indent=2) + "\n")
     print(f"{dest.relative_to(REPO)}: {sum(len(v) for v in dids.values())} DIDs")
 
