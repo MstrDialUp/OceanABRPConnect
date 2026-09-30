@@ -36,7 +36,9 @@ The **vLinker FD+** uses 16-bit UUIDs on the Bluetooth base UUID (`0000xxxx-0000
 | Write (commands to the adapter) | `2AF1` |
 | Notify (replies from the adapter) | `2AF0` |
 
-Read from the Car tab's "BLE link" line on 2026-09-30. Commands are ASCII ending in `\r`, and a reply is complete when the `>` prompt arrives. Writes are chunked to 20 bytes.
+Read from the Car tab's "BLE link" line on 2026-09-30.
+
+Commands are ASCII ending in `\r`, and a reply is complete when the `>` prompt arrives. Writes are chunked to 20 bytes.
 
 **Setup sequence** (all adapter-local, nothing on the bus):
 
